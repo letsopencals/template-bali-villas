@@ -6,7 +6,7 @@ The README references the images in this folder.
 
 | File | Page |
 |------|------|
-| `cover.png` | Gemini base photo (`scripts/image-generation/villa_resort_cover_prompts.json`, variant `bale-terrace-laptop-phone`) with the homepage and a villa page composited in by `composite_screens.py` |
+| `cover.png` | Gemini base photo (`scripts/image-generation/villa_resort_cover_prompts.json`, variant `bale-terrace-laptop-phone`) with the homepage and a villa page composited in by `composite_screens_fit.py` (edge-fitted perspective, 4x supersampled, iOS status bar on the phone) |
 | `homepage-hero.png` | `/`, hero flyover with price pins |
 | `site-map.png` | `/`, the "Find your house on the terraces" site map |
 | `villas.png` | `/villas` |
