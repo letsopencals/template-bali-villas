@@ -25,7 +25,7 @@ export function MobileBookingBar() {
 			<div aria-hidden className="h-24 lg:hidden" />
 			<div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
 				<div className="container-x flex items-center justify-between gap-4 py-3">
-					<button type="button" onClick={() => setOpen(true)} className="min-w-0 text-left" aria-haspopup="dialog">
+					<button type="button" onClick={() => setOpen(true)} className="flex min-w-0 flex-col items-start text-left" aria-haspopup="dialog">
 						{b.status === 'ok' ? (
 							<span className="block font-display text-[1.2rem] tabular">
 								{formatStayPrice(b.estimate, villa.currency)} <span className="text-[0.85rem] text-ink-muted">est.</span>
@@ -33,7 +33,7 @@ export function MobileBookingBar() {
 						) : (
 							<PriceTag amount={villa.price} currency={villa.currency} size="sm" />
 						)}
-						<span className="link-underline tabular block truncate text-[0.85rem] text-ink-muted">
+						<span className="link-underline tabular max-w-full truncate text-[0.85rem] text-ink-muted">
 							{dates ? `${dates} · ${b.nights} ${b.nights === 1 ? 'night' : 'nights'}` : 'Add your dates'}
 						</span>
 					</button>
