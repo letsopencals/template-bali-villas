@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Lumbung Sidemen</title>
+  <rect width="512" height="512" fill="#F4EEE4"/>
+  <g fill="none" stroke="#1F3A2E" stroke-width="13" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M140,436 V236 A116,116 0 0 1 372,236 V436"/>
+    <path d="M118,436 H394"/>
+    <path d="M256,142 C232,146 190,232 180,318 L162,336 H350 L332,318 C322,232 280,146 256,142 Z"/>
+    <path d="M250,178 C234,196 218,250 212,300" stroke-width="7.2" opacity="0.75"/>
+    <path d="M262,178 C278,196 294,250 300,300" stroke-width="7.2" opacity="0.75"/>
+    <path d="M238,336 V302 A18,18 0 0 1 274,302 V336" stroke-width="9.1"/>
+    <path d="M196,358 H316"/>
+    <path d="M208,358 V436 M256,358 V436 M304,358 V436"/>
+    <path d="M196,390 H220 M244,390 H268 M292,390 H316" stroke-width="10.4"/>
+  </g>
+</svg>

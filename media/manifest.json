@@ -1,0 +1,164 @@
+{
+	"note": "Generated from lib/villa-content.ts. Seed images live in backend .../datasets/villa-resort/images/<category>/<name>.jpg -> https://media.opencals.com/<category>/seeding-datasets/bali-villa-rental/<name>.jpg",
+	"products": {
+		"lumbung-padi": [
+			"lumbung-padi",
+			"lumbung-padi-approach",
+			"lumbung-padi-living",
+			"lumbung-padi-bedroom",
+			"lumbung-padi-bathroom",
+			"lumbung-padi-view",
+			"lumbung-padi-detail",
+			"lumbung-padi-dusk"
+		],
+		"lumbung-kembar": [
+			"lumbung-kembar",
+			"lumbung-kembar-approach",
+			"lumbung-kembar-living",
+			"lumbung-kembar-bedroom",
+			"lumbung-kembar-bathroom",
+			"lumbung-kembar-terrace",
+			"lumbung-kembar-detail",
+			"lumbung-kembar-dusk"
+		],
+		"rumah-sawah": [
+			"rumah-sawah",
+			"rumah-sawah-approach",
+			"rumah-sawah-living",
+			"rumah-sawah-bedroom",
+			"rumah-sawah-bathroom",
+			"rumah-sawah-pool",
+			"rumah-sawah-view",
+			"rumah-sawah-dusk",
+			"rumah-sawah-pool-dusk"
+		],
+		"pondok-bambu": [
+			"pondok-bambu",
+			"pondok-bambu-approach",
+			"pondok-bambu-bedroom",
+			"pondok-bambu-bathroom",
+			"pondok-bambu-terrace",
+			"pondok-bambu-view",
+			"pondok-bambu-detail",
+			"pondok-bambu-dusk"
+		],
+		"joglo-jati": [
+			"joglo-jati",
+			"joglo-jati-living",
+			"joglo-jati-bedroom",
+			"joglo-jati-bathroom",
+			"joglo-jati-pool",
+			"joglo-jati-view",
+			"joglo-jati-detail",
+			"joglo-jati-dusk",
+			"joglo-jati-pool-dusk"
+		],
+		"bale-air": [
+			"bale-air",
+			"bale-air-approach",
+			"bale-air-living",
+			"bale-air-bedroom-1",
+			"bale-air-bedroom-2",
+			"bale-air-bathroom",
+			"bale-air-pool",
+			"bale-air-detail",
+			"bale-air-dusk"
+		],
+		"griya-kopi": [
+			"griya-kopi",
+			"griya-kopi-living",
+			"griya-kopi-kitchen",
+			"griya-kopi-bedroom-1",
+			"griya-kopi-bedroom-2",
+			"griya-kopi-bathroom",
+			"griya-kopi-pool",
+			"griya-kopi-detail",
+			"griya-kopi-dusk"
+		],
+		"rumah-batu": [
+			"rumah-batu",
+			"rumah-batu-living",
+			"rumah-batu-bedroom-1",
+			"rumah-batu-bedroom-2",
+			"rumah-batu-bathroom",
+			"rumah-batu-terrace",
+			"rumah-batu-pool",
+			"rumah-batu-detail",
+			"rumah-batu-dusk",
+			"rumah-batu-terrace-dusk"
+		],
+		"joglo-agung": [
+			"joglo-agung",
+			"joglo-agung-living",
+			"joglo-agung-kitchen",
+			"joglo-agung-bedroom-1",
+			"joglo-agung-bedroom-2",
+			"joglo-agung-bedroom-3",
+			"joglo-agung-bathroom",
+			"joglo-agung-pool",
+			"joglo-agung-view",
+			"joglo-agung-dusk",
+			"joglo-agung-pool-dusk"
+		],
+		"puri-sidemen": [
+			"puri-sidemen",
+			"puri-sidemen-approach",
+			"puri-sidemen-living",
+			"puri-sidemen-kitchen",
+			"puri-sidemen-bedroom-1",
+			"puri-sidemen-bedroom-2",
+			"puri-sidemen-bedroom-3",
+			"puri-sidemen-bedroom-4",
+			"puri-sidemen-bathroom",
+			"puri-sidemen-pool",
+			"puri-sidemen-view",
+			"puri-sidemen-dusk",
+			"puri-sidemen-pool-dusk"
+		]
+	},
+	"storefront": [
+		"logo",
+		"banner"
+	],
+	"template": {
+		"images": [
+			"experiences/sunrise-trek",
+			"experiences/weaving",
+			"experiences/cooking-class",
+			"experiences/spa",
+			"experiences/warung",
+			"experiences/temple",
+			"day/pagi",
+			"day/siang",
+			"day/sore",
+			"day/malam",
+			"about/family",
+			"about/carpenter",
+			"about/valley",
+			"getting-there/road",
+			"getting-there/arrival",
+			"journal/harvest",
+			"journal/joglo",
+			"journal/offerings",
+			"masterplan/masterplan-16x9",
+			"masterplan/masterplan-9x16",
+			"og"
+		],
+		"videos": [
+			"hero",
+			"hero-mobile",
+			"valley-morning",
+			"evening-rain"
+		],
+		"videoNotes": {
+			"hero": "16:9 flyover from masterplan-16x9 (Veo full); pins keyframed on it",
+			"hero-mobile": "9:16 flyover from masterplan-9x16 (Veo fast)",
+			"valley-morning": "16:9 general: mist lifting off the terraces at sunrise, Agung behind (Veo fast)",
+			"evening-rain": "16:9 general: soft evening rain on alang-alang thatch, warm lamp light inside a bale (Veo fast)",
+			"perVilla": "No per-villa clips for now (cost). villaContent.video is optional."
+		}
+	},
+	"counts": {
+		"productImages": 94
+	}
+}

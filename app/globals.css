@@ -1,0 +1,384 @@
+@import 'tailwindcss';
+
+/*
+ * Lumbung Sidemen: design tokens and global classes (DESIGN.md §2–§5).
+ *
+ * Every colour token from DESIGN.md is a Tailwind theme colour, so both
+ * `bg-terracotta` / `text-ink-muted` utilities and `var(--color-terracotta)`
+ * work. Fonts are loaded with next/font in app/layout.tsx, which exposes
+ * --font-fraunces and --font-figtree on <html>.
+ *
+ * FOUNDATION FILE: owned by the template foundation [C]. Page agents raise
+ * token changes (TODO(lead)) rather than edit this file.
+ */
+@theme {
+	/* Surfaces */
+	--color-paper: #f4eee4;
+	--color-paper-deep: #ede5d8;
+	--color-sand: #e7dccb;
+	--color-sand-strong: #d9cab3;
+	--color-jungle: #1f3a2e;
+	--color-jungle-deep: #152920;
+	--color-jungle-soft: #2c4a3c;
+
+	/* The only accent */
+	--color-terracotta: #b4502e;
+	--color-terracotta-bright: #cc6440;
+	--color-terracotta-deep: #8f3d21;
+
+	/* Secondary */
+	--color-moss: #6e7f4f;
+	--color-moss-soft: #dce0cc;
+	--color-ochre: #c99a3b;
+
+	/* Ink */
+	--color-ink: #1e1a16;
+	--color-ink-muted: #6b6158;
+	--color-ink-dim: #9a8f84;
+	--color-cream: #fbf8f2;
+
+	/* Lines */
+	--color-line: rgba(30, 26, 22, 0.1);
+	--color-line-strong: rgba(30, 26, 22, 0.18);
+	--color-line-on-dark: rgba(251, 248, 242, 0.14);
+
+	--color-danger: #a23b2a;
+
+	/* Type */
+	--font-display: var(--font-fraunces), 'Fraunces', Georgia, serif;
+	--font-sans: var(--font-figtree), 'Figtree', system-ui, sans-serif;
+	--font-body: var(--font-figtree), 'Figtree', system-ui, sans-serif;
+
+	/* Shape: cards 24px, images 20px, pills via rounded-full */
+	--radius-card: 24px;
+	--radius-image: 20px;
+
+	/* Elevation for floating UI (search capsule, reservation card, panels) */
+	--shadow-float: 0 24px 60px -24px rgba(31, 58, 46, 0.35), 0 0 0 1px rgba(30, 26, 22, 0.1);
+
+	/* Motion */
+	--ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+	--ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+	--animate-marquee: marquee 48s linear infinite;
+	--animate-canang-spin: canang-spin 6s linear infinite;
+	--animate-pulse-ring: pulse-ring 2.2s var(--ease-soft) infinite;
+	--animate-fade-in: fade-in 0.7s ease both;
+}
+
+/* ---------------------------------------------------------------- Base */
+
+html {
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	background-color: var(--color-paper);
+}
+
+/* Lenis owns smooth scrolling when active; native smooth otherwise. */
+html:not(.lenis) {
+	scroll-behavior: smooth;
+}
+html.lenis,
+html.lenis body {
+	height: auto;
+}
+.lenis.lenis-stopped {
+	overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html:not(.lenis) {
+		scroll-behavior: auto;
+	}
+}
+
+body {
+	font-family: var(--font-body);
+	font-size: 1rem;
+	line-height: 1.65;
+	color: var(--color-ink);
+	background-color: var(--color-paper);
+}
+
+::selection {
+	background-color: var(--color-terracotta);
+	color: var(--color-cream);
+}
+
+:focus-visible {
+	outline: 2px solid var(--color-terracotta);
+	outline-offset: 2px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+	display: none;
+}
+.no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+/* ---------------------------------------------------------------- Type */
+
+.display-xl,
+.display-lg,
+.display-md,
+.display-sm {
+	font-family: var(--font-display);
+	font-optical-sizing: auto;
+	text-wrap: balance;
+}
+
+/* The Lumbung wordmark and the closing word. */
+.display-xl {
+	font-size: clamp(4rem, 12vw, 11rem);
+	font-weight: 300;
+	font-variation-settings: 'opsz' 144, 'SOFT' 100;
+	letter-spacing: -0.035em;
+	line-height: 0.9;
+}
+.display-lg {
+	font-size: clamp(2.75rem, 6vw, 5.5rem);
+	font-weight: 300;
+	font-variation-settings: 'opsz' 144, 'SOFT' 50;
+	letter-spacing: -0.025em;
+	line-height: 1;
+}
+.display-md {
+	font-size: clamp(2rem, 3.6vw, 3.25rem);
+	font-weight: 350;
+	font-variation-settings: 'opsz' 96, 'SOFT' 50;
+	letter-spacing: -0.015em;
+	line-height: 1.08;
+}
+.display-sm {
+	font-size: 1.6rem;
+	font-weight: 400;
+	font-variation-settings: 'opsz' 36;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+}
+
+/* Mixed italic: "Ten houses <em class="italic-soft">in the rice fields</em>". */
+.italic-soft {
+	font-family: var(--font-display);
+	font-style: italic;
+	font-variation-settings: 'SOFT' 100, 'WONK' 1;
+	color: var(--color-terracotta-deep);
+}
+.on-dark .italic-soft,
+.italic-soft.on-dark {
+	color: var(--color-cream);
+}
+
+/* Eyebrows, chips, table heads. */
+.label {
+	font-family: var(--font-body);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.16em;
+	line-height: 1.4;
+	text-transform: uppercase;
+	color: var(--color-ink-muted);
+}
+.on-dark .label,
+.label.on-dark {
+	color: rgba(251, 248, 242, 0.7);
+}
+
+/* Every price, date and countdown. */
+.tabular {
+	font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ---------------------------------------------------------------- Shape */
+
+/* Arch frame for villa portrait cards and room-tour images. */
+.arch {
+	border-radius: 999px 999px 20px 20px / 420px 420px 20px 20px;
+	overflow: hidden;
+}
+
+/* Container + section rhythm (DESIGN.md §4). */
+.container-x {
+	margin-inline: auto;
+	width: 100%;
+	max-width: 1440px;
+	padding-inline: 1.25rem;
+}
+@media (min-width: 48rem) {
+	.container-x {
+		padding-inline: 2.5rem;
+	}
+}
+.container-narrow {
+	margin-inline: auto;
+	width: 100%;
+	max-width: 880px;
+	padding-inline: 1.25rem;
+}
+@media (min-width: 48rem) {
+	.container-narrow {
+		padding-inline: 2.5rem;
+	}
+}
+.section-y {
+	padding-block: 6rem;
+}
+@media (min-width: 48rem) {
+	.section-y {
+		padding-block: 9rem;
+	}
+}
+
+/* Floating UI surface: search capsule, reservation card, panels. */
+.float-surface {
+	background-color: var(--color-cream);
+	box-shadow: var(--shadow-float);
+}
+
+/* Glass: only over video and photos. */
+.glass {
+	background-color: rgba(251, 248, 242, 0.75);
+	-webkit-backdrop-filter: blur(24px);
+	backdrop-filter: blur(24px);
+}
+
+/* Scrim for cream text on video and photos. */
+.scrim-bottom {
+	background: linear-gradient(0deg, rgba(21, 41, 32, 0.45) 0%, rgba(21, 41, 32, 0) 100%);
+}
+.scrim-top {
+	background: linear-gradient(180deg, rgba(21, 41, 32, 0.45) 0%, rgba(21, 41, 32, 0) 100%);
+}
+
+/* Missing-image fallback: a soft limestone gradient, never a broken box. */
+.image-placeholder {
+	background-color: var(--color-sand);
+	background-image:
+		radial-gradient(70% 60% at 50% 30%, rgba(251, 248, 242, 0.6) 0%, rgba(251, 248, 242, 0) 60%),
+		linear-gradient(180deg, var(--color-sand) 0%, var(--color-sand-strong) 100%);
+}
+
+/* Grain overlay (4%, multiply) for paper sections and the hero. Needs a positioned parent. */
+.grain {
+	position: relative;
+	isolation: isolate;
+}
+.grain::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	pointer-events: none;
+	opacity: 0.04;
+	mix-blend-mode: multiply;
+	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Animated underline for text links. */
+.link-underline {
+	position: relative;
+	display: inline-block;
+}
+.link-underline::after {
+	content: '';
+	position: absolute;
+	bottom: -2px;
+	left: 0;
+	width: 100%;
+	height: 1px;
+	background-color: currentColor;
+	transform: scaleX(0);
+	transform-origin: right;
+	transition: transform 0.5s var(--ease-expo);
+}
+.link-underline:hover::after {
+	transform: scaleX(1);
+	transform-origin: left;
+}
+
+.hairline {
+	height: 1px;
+	border: none;
+	background: var(--color-line);
+}
+
+/* Dotted leader ("3 nights × $240 ........ $720"). */
+.leader-line {
+	flex: 1;
+	margin: 0 0.75rem;
+	border-bottom: 1px dotted var(--color-line-strong);
+	transform: translateY(-4px);
+}
+
+/* Candi bentar gate: hidden before paint for returning visitors (GateScript) and under reduced motion. */
+html[data-gate-seen] [data-candi-gate] {
+	display: none;
+}
+/* First visit to a page with the gate: the gate is the reveal, so skip the curtain. The
+ * page-transition transform would otherwise trap the z-70 gate under the z-60 header. */
+html:not([data-gate-seen]):has([data-candi-gate]) [data-candi-curtain] {
+	display: none;
+}
+html:not([data-gate-seen]):has([data-candi-gate]) [data-page-transition] {
+	transform: none !important;
+	opacity: 1 !important;
+}
+html[data-gate-seen] [data-gate-rise] {
+	opacity: 1 !important;
+	transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-candi-gate] {
+		display: none;
+	}
+	[data-gate-rise] {
+		opacity: 1 !important;
+		transform: none !important;
+	}
+}
+
+/* ---------------------------------------------------------------- Keyframes */
+
+@keyframes marquee {
+	from {
+		transform: translateX(0);
+	}
+	to {
+		transform: translateX(-50%);
+	}
+}
+@keyframes canang-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+@keyframes pulse-ring {
+	0% {
+		transform: scale(1);
+		opacity: 0.55;
+	}
+	100% {
+		transform: scale(2.2);
+		opacity: 0;
+	}
+}
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-marquee,
+	.animate-canang-spin,
+	.animate-pulse-ring {
+		animation: none;
+	}
+}
