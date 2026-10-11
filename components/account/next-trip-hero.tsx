@@ -42,7 +42,7 @@ export function NextTripHero({ trip, hasTransfer }: { trip: Trip; hasTransfer: b
 						{current ? 'Selamat menikmati. Enjoy every minute.' : `Check-in ${countdownLabel(trip)}`}
 					</p>
 					<h2 className="display-lg mt-2 max-w-3xl text-cream">{trip.villa.title}</h2>
-					{trip.villa.type ? <p className="italic-soft mt-2 text-lg text-cream/80">{trip.villa.type}</p> : null}
+					{trip.villa.type ? <p className="italic-soft on-dark mt-2 text-lg opacity-80">{trip.villa.type}</p> : null}
 
 					<dl className="mt-6 flex flex-wrap gap-x-8 gap-y-3 text-[0.95rem]">
 						<div>
