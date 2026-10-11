@@ -5,7 +5,27 @@ brand is **Lumbung Sidemen**, a 10-villa resort in Sidemen, Bali, with
 nightly stays (check-in 15:00, check-out 11:00), built on
 [`@opencals/storefront-sdk`](https://www.npmjs.com/package/@opencals/storefront-sdk).
 
-> Work in progress. Full setup docs, screenshots and the deploy button come later.
+![Lumbung Sidemen: the storefront on a laptop and phone, on a teak table in a thatched bale above the Sidemen rice terraces, with Mount Agung behind](docs/cover.png)
+
+> Work in progress. Full setup docs and the deploy button come later.
+
+## Screenshots
+
+![Homepage hero: a drone flyover of the valley with live price pins on each villa and the dates search](docs/homepage-hero.png)
+
+![The site map: all ten houses numbered on one hillside of terraces, with nightly prices](docs/site-map.png)
+
+![The villas list: arched photo cards with the nightly price, guests, bedrooms and minimum stay](docs/villas.png)
+
+![A villa page (Joglo Agung): the day/dusk hero photo and the gallery grid](docs/villa-page.png)
+
+![Reserve: the two-month stay calendar with booked nights struck through, and the stay summary](docs/reserve.png)
+
+![On mobile: a villa page with the sticky price and Check dates bar](docs/mobile.png)
+
+![My trips: the next stay with a countdown, arrival details and quick actions](docs/account.png)
+
+![A trip page: change dates or cancel, the stay details with extras, payment, the house manual and directions](docs/trip.png)
 
 ## Quick start
 
