@@ -1,6 +1,6 @@
 import '@/lib/opencals';
 import { CheckoutService, type SubmitCheckout } from '@opencals/storefront-sdk';
-import { auth } from '@/lib/auth';
+import { getAccessToken, getSessionCustomerId } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { toCheckoutCustomer } from '../customer-payload';
@@ -16,9 +16,8 @@ export async function POST(request: NextRequest) {
 
 	try {
 		const raw = (await request.json()) as Record<string, unknown>;
-		const session = await auth();
-		const token = session?.accessToken ?? null;
-		const customer = toCheckoutCustomer(raw.customer, raw.deliveryAddress, token ? session?.customer?.id : null);
+		const token = await getAccessToken();
+		const customer = toCheckoutCustomer(raw.customer, raw.deliveryAddress, await getSessionCustomerId());
 		const tracking = raw.trackingData && typeof raw.trackingData === 'object' ? (raw.trackingData as Record<string, unknown>) : null;
 		const gclid = shortString(tracking?.gclid);
 		const body: SubmitCheckout = {

@@ -118,8 +118,9 @@ interface ConfirmedViewProps {
 
 /** `/reserve/confirmed/[id]`: loads the order (checkout signs the guest in) and shows the itinerary, getting-there steps and a checklist. */
 export function ConfirmedView({ orderId }: ConfirmedViewProps) {
-	const { status } = useSession();
-	const key = status === 'authenticated' ? `/api/account/orders/${encodeURIComponent(orderId)}` : null;
+	const { data: session, status } = useSession();
+	// A session cookie without a customer has expired: skip the call and show the fallback.
+	const key = session?.customer ? `/api/account/orders/${encodeURIComponent(orderId)}` : null;
 	const { data: order, isLoading, error } = useSWR<OrderDetailResponse>(key, fetcher, SWR_OPTS);
 	const loading = status === 'loading' || isLoading;
 
@@ -167,7 +168,7 @@ export function ConfirmedView({ orderId }: ConfirmedViewProps) {
 						) : stays.length > 0 ? (
 							stays.map((s) => <StayCard key={s.appointmentId} stay={s} currency={currency} />)
 						) : (
-							<NoDetails signedIn={status === 'authenticated' && !error} />
+							<NoDetails signedIn={Boolean(session?.customer) && !error} />
 						)}
 
 						<div className="rounded-[24px] bg-paper-deep p-6 lg:p-8">

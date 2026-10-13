@@ -28,7 +28,7 @@ export const TRANSPARENT_HEADER_ROUTES: readonly RegExp[] = [/^\/$/, /^\/experie
  */
 export function Header() {
 	const pathname = usePathname();
-	const { status } = useSession();
+	const { data: session } = useSession();
 	const [scrolled, setScrolled] = useState(false);
 	const [menuOpen, setMenuOpen] = useState(false);
 
@@ -43,7 +43,7 @@ export function Header() {
 	const overHero = TRANSPARENT_HEADER_ROUTES.some((r) => r.test(pathname));
 	const solid = scrolled || !overHero;
 	const light = menuOpen || !solid; // cream text
-	const tripsHref = status === 'authenticated' ? '/account' : '/auth/login';
+	const tripsHref = session?.customer ? '/account' : '/auth/login';
 
 	return (
 		<>

@@ -1,6 +1,6 @@
 import '@/lib/opencals';
 import { CheckoutService, type StartCheckout } from '@opencals/storefront-sdk';
-import { auth } from '@/lib/auth';
+import { getAccessToken, getSessionCustomerId } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { toCheckoutCustomer } from '../customer-payload';
@@ -21,9 +21,8 @@ export async function POST(request: NextRequest) {
 		if (!provider) {
 			return NextResponse.json({ error: 'Unknown payment provider' }, { status: 400 });
 		}
-		const session = await auth();
-		const token = session?.accessToken ?? null;
-		const customer = toCheckoutCustomer(raw.customer, raw.deliveryAddress, token ? session?.customer?.id : null);
+		const token = await getAccessToken();
+		const customer = toCheckoutCustomer(raw.customer, raw.deliveryAddress, await getSessionCustomerId());
 		const { data } = await CheckoutService.start({
 			// Cast: `customer.deliveryAddress` is accepted by the API but missing from SDK 0.3.14 types.
 			body: { provider, ...(customer ? { customer } : {}) } as StartCheckout,

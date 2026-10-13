@@ -1,7 +1,7 @@
 import '@/lib/opencals';
 import { AppointmentService, CartService, CheckoutService, OpencalsApiError } from '@opencals/storefront-sdk';
 import type { CartResponse, NewAppointmentCustomer } from '@opencals/storefront-sdk';
-import { auth } from '@/lib/auth';
+import { getAccessToken, getSessionCustomerId } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { siteConfig } from '@/lib/site-config';
@@ -174,10 +174,9 @@ export async function POST(request: NextRequest) {
 	const customAttributes = sanitizeStayAttributes(rawAttributes);
 	const addOns = sanitizeAddOns(body.addOns);
 
-	const session = await auth();
-	const token = session?.accessToken ?? null;
+	const token = await getAccessToken();
 	// customerId is only trusted when it's the signed-in customer's own id.
-	const sessionCustomerId = token ? (session?.customer?.id ?? null) : null;
+	const sessionCustomerId = await getSessionCustomerId();
 	const authHeaders = { Authorization: `Bearer ${token ?? ''}` };
 	const answers = sanitizeAnswers(body.checkoutQuestionAnswers);
 
