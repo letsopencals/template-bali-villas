@@ -5,7 +5,6 @@ import { loadStripe, type Appearance } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { Button } from '@/components/ui/button';
 
-const ENV_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
 /** Stripe Elements on paper: cream fields, terracotta focus, pill-ish 14px radius, Figtree. */
 const APPEARANCE: Appearance = {
@@ -49,7 +48,7 @@ export interface StripePaymentProps {
 
 /** Stripe Payment Element + a terracotta "Pay $total" button. Loaded with next/dynamic (ssr: false). */
 export default function StripePayment({ clientSecret, publishableKey, stripeAccountId, payLabel, disabled, onSuccess, onError, registerPay }: StripePaymentProps) {
-	const key = publishableKey || ENV_KEY;
+	const key = publishableKey;
 	const stripePromise = useMemo(() => (key ? loadStripe(key, stripeAccountId ? { stripeAccount: stripeAccountId } : undefined) : null), [key, stripeAccountId]);
 	const options = useMemo(() => ({ clientSecret, appearance: APPEARANCE }), [clientSecret]);
 
