@@ -7,9 +7,10 @@ function text(value: unknown): string | undefined {
 }
 
 /**
- * Turns an SDK error into `{ error, errors?, code?, orderId?, paymentStatus? }` with the API's status, so the
- * client can react to checkout conflicts (CART_ALREADY_CHECKED_OUT, CART_EXPIRED, CHECKOUT_IN_PROGRESS) and
- * 402 PAYMENT_NOT_AUTHORIZED.
+ * Turns an SDK error into `{ error, errors?, fieldErrors?, code?, orderId?, paymentStatus? }` with the API's
+ * status, so the client can react to checkout conflicts (CART_ALREADY_CHECKED_OUT, CART_EXPIRED,
+ * CHECKOUT_IN_PROGRESS) and 402 PAYMENT_NOT_AUTHORIZED. `fieldErrors` is the API's validation array as is
+ * (`[{ property: 'customer.phone', messages }]`), so forms can show each message under its field.
  */
 export function handleApiError(err: unknown, fallbackMessage = 'Internal server error') {
 	if (err instanceof OpencalsApiError) {
@@ -22,6 +23,7 @@ export function handleApiError(err: unknown, fallbackMessage = 'Internal server 
 			{
 				error: err.message,
 				...(Object.keys(fieldErrors).length > 0 && { errors: fieldErrors }),
+				...(err.errors && err.errors.length > 0 ? { fieldErrors: err.errors } : {}),
 				// Any route's code is passed on (checkout codes, discount codes, …), so this stays a string.
 				...(err.code ? { code: err.code } : {}),
 				...(orderId ? { orderId } : {}),

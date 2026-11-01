@@ -78,6 +78,14 @@ export interface FieldProps {
 	children: ReactNode;
 }
 
+/**
+ * The ids `Field` gives its error and hint lines (from the control's id), for the control's
+ * `aria-describedby`: `<Input aria-describedby={fieldDescribedBy(id, error, hint)} />`.
+ */
+export function fieldDescribedBy(htmlFor: string, error?: ReactNode, hint?: ReactNode): string | undefined {
+	return error ? `${htmlFor}-error` : hint ? `${htmlFor}-hint` : undefined;
+}
+
 /** Label + control + hint/error, stacked. */
 export function Field({ label, htmlFor, hint, error, className, children }: FieldProps) {
 	return (
@@ -87,11 +95,13 @@ export function Field({ label, htmlFor, hint, error, className, children }: Fiel
 			</label>
 			{children}
 			{error ? (
-				<p role="alert" className="pl-5 text-[0.82rem] text-danger">
+				<p id={htmlFor ? `${htmlFor}-error` : undefined} role="alert" className="pl-5 text-[0.82rem] text-danger">
 					{error}
 				</p>
 			) : hint ? (
-				<p className="pl-5 text-[0.82rem] text-ink-muted">{hint}</p>
+				<p id={htmlFor ? `${htmlFor}-hint` : undefined} className="pl-5 text-[0.82rem] text-ink-muted">
+					{hint}
+				</p>
 			) : null}
 		</div>
 	);

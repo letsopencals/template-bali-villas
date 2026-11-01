@@ -104,6 +104,20 @@ export function ReserveView({ villa, initialStay, initialGuests, checkoutSetting
 		});
 	}, [refreshRanges]);
 
+	// The API rejected a guest or billing field: back to step 3, where the message sits under the field.
+	const pickedForRef = useRef<unknown>(null);
+	const onFieldErrors = useCallback(() => {
+		pickedForRef.current = null;
+		setErrorStep(null);
+		setShowGuestErrors(true);
+		setOpen(3);
+		setDone((d) => {
+			const next = new Set(d);
+			next.delete(3);
+			return next;
+		});
+	}, []);
+
 	const asks = useMemo(() => checkoutAsks(checkoutSettings), [checkoutSettings]);
 	const billingAddress = useMemo(() => (asks.billing === 'hidden' && asks.company === 'hidden' && asks.vat === 'hidden' ? null : (billingPayload(billing) ?? null)), [asks, billing]);
 	const marketingConsent = useMemo(() => consentPayload(consent, asks), [consent, asks]);
@@ -114,6 +128,7 @@ export function ReserveView({ villa, initialStay, initialGuests, checkoutSetting
 		locationId: villa.locationId,
 		customAttributes,
 		onSlotUnavailable,
+		onFieldErrors,
 		billingAddress,
 		marketingConsent,
 	});
@@ -210,7 +225,6 @@ export function ReserveView({ villa, initialStay, initialGuests, checkoutSetting
 	// Payment: start the only provider automatically, once per hold. A failed
 	// start isn't retried on its own; Retry clears the ref and the flag so this
 	// effect picks it again.
-	const pickedForRef = useRef<unknown>(null);
 	useEffect(() => {
 		const only = booking.providers.length === 1 ? booking.providers[0] : undefined;
 		if (open !== 4 || !held || booking.provider || booking.submitting || booking.providerFailed || !only) return;

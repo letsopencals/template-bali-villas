@@ -23,6 +23,7 @@ import { useCartExpiry } from '@/hooks/use-cart-expiry';
 import { useFileUploads } from '@/hooks/use-file-upload';
 import { usePaymentProviders } from '@/hooks/use-payment-providers';
 import { checkoutModeOf, confirmsOnly, keepPaymentInstructions, readCheckoutProblem, type CheckoutProblem } from '@/lib/checkout-payment';
+import { mapFieldErrors, phoneProblem, readFieldErrors, withoutField, type ApiFieldErrors, type FieldErrorMap } from '@/lib/field-errors';
 
 export interface StayBookingInput {
 	/** The villa product: `id` books, `slug` keys questions, `variant` keys add-ons. */
@@ -44,6 +45,8 @@ export interface StayBookingInput {
 	customAttributes: Record<string, string>;
 	/** Called when the server says the dates were taken in the meantime. */
 	onSlotUnavailable?: () => void;
+	/** Called when the API rejected a guest or billing field; its message is in `fieldErrors`. */
+	onFieldErrors?: () => void;
 	/** Billing address (company / VAT included), sent with checkout start and submit. Omit when the store hides it. */
 	billingAddress?: BillingAddress | null;
 	/** Marketing opt-ins, only for the channels the store's checkout settings show. */
@@ -59,7 +62,24 @@ interface Reservation {
 	linkedFiles: boolean;
 }
 
-type FieldErrors = Record<string, string[]>;
+/**
+ * Step 3's fields, as `mapFieldErrors` keys them: the lead guest and the billing block. An API error on any of
+ * them shows under the field; anything else stays in the step's error line.
+ */
+const GUEST_FIELDS = [
+	'firstName',
+	'lastName',
+	'email',
+	'phone',
+	'billingAddress.companyName',
+	'billingAddress.taxRegistrationId',
+	'billingAddress.addressLine1',
+	'billingAddress.addressLine2',
+	'billingAddress.city',
+	'billingAddress.state',
+	'billingAddress.postalCode',
+	'billingAddress.country',
+] as const;
 
 async function readJson<T>(res: Response): Promise<T | null> {
 	return (await res.json().catch(() => null)) as T | null;
@@ -97,7 +117,7 @@ async function postCheckout(url: string, headers: Record<string, string>, body: 
  * confirmed straight away or waits for payment or approval (`pendingReason`).
  */
 export function useStayBooking(input: StayBookingInput) {
-	const { villa, stay, locationId, customAttributes, onSlotUnavailable, billingAddress, marketingConsent } = input;
+	const { villa, stay, locationId, customAttributes, onSlotUnavailable, onFieldErrors, billingAddress, marketingConsent } = input;
 	const nights = stay ? nightsBetween(stay.checkin, stay.checkout) : 0;
 	const router = useRouter();
 	const { data: session } = useSession();
@@ -139,7 +159,7 @@ export function useStayBooking(input: StayBookingInput) {
 	const [reserving, setReserving] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+	const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
 	const [slotTaken, setSlotTaken] = useState(false);
 
 	const timeRemaining = useCartExpiry(reservation?.cart.expiresAt);
@@ -228,7 +248,23 @@ export function useStayBooking(input: StayBookingInput) {
 
 	const questionsValid = questionsComplete(questions, answers, uploads.fileIdsFor);
 	const emailValid = customerId !== null || /^\S+@\S+\.\S+$/.test(email.trim());
-	const detailsValid = emailValid && firstName.trim().length > 0 && lastName.trim().length > 0 && phone.trim().length >= 6;
+	const detailsValid = emailValid && firstName.trim().length > 0 && lastName.trim().length > 0 && phone.trim().length >= 6 && !phoneProblem(phone);
+
+	/** Drops a field's API error once the guest edits it. */
+	const clearFieldError = useCallback((key: string) => setFieldErrors((prev) => withoutField(prev, key)), []);
+
+	/**
+	 * Puts the API's field errors under their fields. Returns the messages that have no field on the form (null
+	 * when there are none), or undefined when nothing could be placed, so the caller keeps its usual error.
+	 */
+	const applyFieldErrors = useCallback((list: ApiFieldErrors): string | null | undefined => {
+		const { byField, unmapped } = mapFieldErrors(list, GUEST_FIELDS);
+		if (Object.keys(byField).length === 0) return undefined;
+		setFieldErrors(byField);
+		onFieldErrors?.();
+		return unmapped.length > 0 ? unmapped.join(' ') : null;
+	}, [onFieldErrors]);
+
 	const canReserve = !!villa && !!stay && nights > 0 && detailsValid && questionsValid && !uploads.busy && !reserving;
 
 	const reserve = useCallback(async (): Promise<boolean> => {
@@ -272,7 +308,7 @@ export function useStayBooking(input: StayBookingInput) {
 				itemId?: string | null;
 				error?: string;
 				code?: string;
-				errors?: FieldErrors;
+				fieldErrors?: ApiFieldErrors;
 			}>(res);
 
 			if (!res.ok) {
@@ -284,8 +320,8 @@ export function useStayBooking(input: StayBookingInput) {
 					// Held, but answers didn't save: keep the hold so a retry replaces it.
 					setReservation({ cart: data.cart, itemId: data.itemId ?? null, signature: '', linkedFiles: false });
 				}
-				if (data?.errors) setFieldErrors(data.errors);
-				setError(data?.error || 'Could not hold this villa. Try again.');
+				const rest = applyFieldErrors(readFieldErrors(data));
+				setError(rest !== undefined ? rest : data?.error || 'Could not hold this villa. Try again.');
 				return false;
 			}
 			if (!data?.cart) throw new Error('Could not hold this villa. Try again.');
@@ -319,6 +355,7 @@ export function useStayBooking(input: StayBookingInput) {
 		onSlotUnavailable,
 		setCart,
 		signature,
+		applyFieldErrors,
 	]);
 
 	/**
@@ -406,6 +443,14 @@ export function useStayBooking(input: StayBookingInput) {
 				setError('Your card wasn’t authorised, so nothing was charged. Try again or use another card.');
 				return;
 			}
+			const rest = problem ? applyFieldErrors(problem.fieldErrors) : undefined;
+			if (rest !== undefined) {
+				// A detail the guest typed was rejected: the view reopens step 3 with the message under the field.
+				setProvider(null);
+				setPaymentData(null);
+				setError(rest);
+				return;
+			}
 			setError(err instanceof Error && err.message ? err.message : fallback);
 			if (during === 'start') {
 				setProvider(null);
@@ -413,7 +458,7 @@ export function useStayBooking(input: StayBookingInput) {
 				setProviderFailed(true);
 			}
 		},
-		[goToConfirmation, onSlotUnavailable],
+		[goToConfirmation, onSlotUnavailable, applyFieldErrors],
 	);
 
 	const startCheckout = useCallback(
@@ -558,6 +603,7 @@ export function useStayBooking(input: StayBookingInput) {
 		customerId,
 		detailsValid,
 		fieldErrors,
+		clearFieldError,
 		// hold
 		canReserve,
 		reserve,

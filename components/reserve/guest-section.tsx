@@ -4,7 +4,8 @@ import { useId } from 'react';
 import { siteConfig } from '@/lib/site-config';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
-import { Field, Input, Select } from '@/components/ui/input';
+import { Field, Input, Select, fieldDescribedBy } from '@/components/ui/input';
+import { PHONE_HINT, PHONE_PLACEHOLDER, phoneProblem } from '@/lib/field-errors';
 import type { StayBooking } from '@/hooks/use-stay-booking';
 import { SectionError } from './reserve-section';
 import { QuestionsFields } from './questions-fields';
@@ -57,42 +58,75 @@ export function GuestSection({
 	const uid = useId();
 	const fe = booking.fieldErrors;
 	const loggedIn = booking.customerId !== null;
-	const errFor = (key: string, ok: boolean, msg: string) => fe[key]?.[0] ?? (showErrors && !ok ? msg : undefined);
+	// An API error for the field first, then the client's own check (after a Continue attempt).
+	const errFor = (key: string, problem: string | null) => (fe[key]?.length ? fe[key].join(' ') : showErrors && problem ? problem : undefined);
+	const fnError = errFor('firstName', booking.firstName.trim() ? null : 'Add your first name');
+	const lnError = errFor('lastName', booking.lastName.trim() ? null : 'Add your last name');
+	const emError = errFor('email', loggedIn || EMAIL_RE.test(booking.email.trim()) ? null : 'Add an email we can write to');
+	const phError = errFor('phone', booking.phone.trim().length < 6 ? 'Add a number with country code' : phoneProblem(booking.phone));
+	const emHint = loggedIn ? 'From your account.' : 'Your confirmation and house manual go here.';
+	const phHint = `${PHONE_HINT}. Your driver and host use this on the day.`;
 
 	return (
 		<div className="flex flex-col gap-10">
 			<fieldset className="flex flex-col gap-5">
 				<legend className="label mb-4">Lead guest</legend>
 				<div className="grid gap-5 sm:grid-cols-2">
-					<Field label="First name" htmlFor={`${uid}-fn`} error={errFor('firstName', booking.firstName.trim().length > 0, 'Add your first name')}>
-						<Input id={`${uid}-fn`} autoComplete="given-name" value={booking.firstName} onChange={(e) => booking.setFirstName(e.target.value)} invalid={showErrors && !booking.firstName.trim()} />
+					<Field label="First name" htmlFor={`${uid}-fn`} error={fnError}>
+						<Input
+							id={`${uid}-fn`}
+							autoComplete="given-name"
+							value={booking.firstName}
+							onChange={(e) => {
+								booking.setFirstName(e.target.value);
+								booking.clearFieldError('firstName');
+							}}
+							invalid={!!fnError}
+							aria-describedby={fieldDescribedBy(`${uid}-fn`, fnError)}
+						/>
 					</Field>
-					<Field label="Last name" htmlFor={`${uid}-ln`} error={errFor('lastName', booking.lastName.trim().length > 0, 'Add your last name')}>
-						<Input id={`${uid}-ln`} autoComplete="family-name" value={booking.lastName} onChange={(e) => booking.setLastName(e.target.value)} invalid={showErrors && !booking.lastName.trim()} />
+					<Field label="Last name" htmlFor={`${uid}-ln`} error={lnError}>
+						<Input
+							id={`${uid}-ln`}
+							autoComplete="family-name"
+							value={booking.lastName}
+							onChange={(e) => {
+								booking.setLastName(e.target.value);
+								booking.clearFieldError('lastName');
+							}}
+							invalid={!!lnError}
+							aria-describedby={fieldDescribedBy(`${uid}-ln`, lnError)}
+						/>
 					</Field>
-					<Field
-						label="Email"
-						htmlFor={`${uid}-em`}
-						hint={loggedIn ? 'From your account.' : 'Your confirmation and house manual go here.'}
-						error={errFor('email', loggedIn || EMAIL_RE.test(booking.email.trim()), 'Add an email we can write to')}
-					>
+					<Field label="Email" htmlFor={`${uid}-em`} hint={emHint} error={emError}>
 						<Input
 							id={`${uid}-em`}
 							type="email"
 							autoComplete="email"
 							value={booking.email}
 							readOnly={loggedIn}
-							onChange={(e) => booking.setEmail(e.target.value)}
-							invalid={showErrors && !loggedIn && !EMAIL_RE.test(booking.email.trim())}
+							onChange={(e) => {
+								booking.setEmail(e.target.value);
+								booking.clearFieldError('email');
+							}}
+							invalid={!!emError}
+							aria-describedby={fieldDescribedBy(`${uid}-em`, emError, emHint)}
 						/>
 					</Field>
-					<Field
-						label="Phone or WhatsApp"
-						htmlFor={`${uid}-ph`}
-						hint="Your driver and host use this on the day."
-						error={errFor('phone', booking.phone.trim().length >= 6, 'Add a number with country code')}
-					>
-						<Input id={`${uid}-ph`} type="tel" autoComplete="tel" placeholder="+44 7700 900123" value={booking.phone} onChange={(e) => booking.setPhone(e.target.value)} invalid={showErrors && booking.phone.trim().length < 6} />
+					<Field label="Phone or WhatsApp" htmlFor={`${uid}-ph`} hint={phHint} error={phError}>
+						<Input
+							id={`${uid}-ph`}
+							type="tel"
+							autoComplete="tel"
+							placeholder={PHONE_PLACEHOLDER}
+							value={booking.phone}
+							onChange={(e) => {
+								booking.setPhone(e.target.value);
+								booking.clearFieldError('phone');
+							}}
+							invalid={!!phError}
+							aria-describedby={fieldDescribedBy(`${uid}-ph`, phError, phHint)}
+						/>
 					</Field>
 				</div>
 			</fieldset>
@@ -141,7 +175,16 @@ export function GuestSection({
 				</fieldset>
 			) : null}
 
-			<BillingFields asks={asks} billing={billing} onBilling={onBilling} consent={consent} onConsent={onConsent} showErrors={showErrors} />
+			<BillingFields
+				asks={asks}
+				billing={billing}
+				onBilling={onBilling}
+				consent={consent}
+				onConsent={onConsent}
+				showErrors={showErrors}
+				fieldErrors={fe}
+				onClearFieldError={booking.clearFieldError}
+			/>
 
 			{error ? <SectionError>{error}</SectionError> : null}
 			<div>

@@ -5,6 +5,7 @@ import type {
 	PaymentInstructions,
 	PaymentProviderName,
 } from '@opencals/storefront-sdk';
+import { readFieldErrors, type ApiFieldErrors } from './field-errors';
 
 /**
  * Checkout helpers for `/reserve/[slug]` and `/reserve/confirmed/[id]`: how a
@@ -44,9 +45,11 @@ export function providerName(provider: Pick<CustomerProviderCatalogItem, 'name'>
 export interface CheckoutProblem extends Pick<Partial<CheckoutErrorResponse>, 'code' | 'orderId' | 'paymentStatus'> {
 	status: number;
 	message: string;
+	/** The API's field validation errors (empty when there are none). */
+	fieldErrors: ApiFieldErrors;
 }
 
-/** `{ error, code, orderId, paymentStatus }` from a failed `/api/checkout/*` response. */
+/** `{ error, code, orderId, paymentStatus, fieldErrors }` from a failed `/api/checkout/*` response. */
 export async function readCheckoutProblem(res: Response, fallback: string): Promise<CheckoutProblem> {
 	const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
 	const text = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
@@ -57,6 +60,7 @@ export async function readCheckoutProblem(res: Response, fallback: string): Prom
 		code: text(body?.code) as CheckoutErrorCode | undefined,
 		orderId: text(body?.orderId),
 		paymentStatus: text(body?.paymentStatus),
+		fieldErrors: readFieldErrors(body),
 	};
 }
 

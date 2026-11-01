@@ -1,6 +1,17 @@
 import { onSessionExpired } from '@/lib/session-expired';
+import { readFieldErrors, type ApiFieldErrors } from '@/lib/field-errors';
 
-/** JSON request to the template's own /api/account routes; throws the route's `error` message. */
+/** A failed account request: the route's `error` message, plus the API's field errors when it sent any. */
+export class AccountRequestError extends Error {
+	constructor(
+		message: string,
+		readonly fieldErrors: ApiFieldErrors = [],
+	) {
+		super(message);
+	}
+}
+
+/** JSON request to the template's own /api/account routes; throws an `AccountRequestError` with the route's message. */
 export async function accountRequest<T = unknown>(url: string, method: 'PUT' | 'POST', body?: unknown): Promise<T> {
 	const res = await fetch(url, {
 		method,
@@ -13,7 +24,7 @@ export async function accountRequest<T = unknown>(url: string, method: 'PUT' | '
 			onSessionExpired();
 			throw new Error('Your session has ended. Please sign in again.');
 		}
-		throw new Error(data?.error || 'Something went wrong. Please try again.');
+		throw new AccountRequestError(data?.error || 'Something went wrong. Please try again.', readFieldErrors(data));
 	}
 	return data as T;
 }
