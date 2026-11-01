@@ -1,4 +1,4 @@
-import type { AppointmentDetailResponse, InvoiceResponse } from '@opencals/storefront-sdk';
+import type { AppointmentDetailOrderTransaction, AppointmentDetailResponse, InvoiceResponse } from '@opencals/storefront-sdk';
 import { DetailCard, DetailRow } from '@/components/account/trip-detail/detail-card';
 import { Badge } from '@/components/ui/badge';
 import { formatMoney, formatShortDate, parseUtc } from '@/components/account/trip-model';
@@ -12,7 +12,7 @@ const PROVIDER: Record<string, string> = {
 	bank_transfer: 'Bank transfer',
 	shopify: 'Shopify',
 	no_payment_required: 'No payment needed',
-};
+} satisfies Partial<Record<AppointmentDetailOrderTransaction['provider'], string>>;
 
 const TX_TYPE: Record<string, string> = {
 	authorization: 'Card hold',
@@ -20,7 +20,7 @@ const TX_TYPE: Record<string, string> = {
 	sale: 'Payment',
 	refund: 'Refund',
 	void: 'Hold released',
-};
+} satisfies Record<AppointmentDetailOrderTransaction['type'], string>;
 
 function localDate(value: string): string {
 	const ms = parseUtc(value);

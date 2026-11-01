@@ -1,6 +1,6 @@
 import '@/lib/opencals';
 import { AppointmentService, CartService, CheckoutService, OpencalsApiError } from '@opencals/storefront-sdk';
-import type { CartResponse, NewAppointmentCustomer } from '@opencals/storefront-sdk';
+import type { CartResponse, CheckoutQuestionAnswer, ExistingOrderCustomer, NewOrderCustomer } from '@opencals/storefront-sdk';
 import { getAccessToken, getSessionCustomerId } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
@@ -12,23 +12,6 @@ import { publicPayload } from '@/lib/public-payload';
 import { guestLimitError, isRealDate, sanitizeAddOns } from '../_lib/guards';
 import { EMAIL_RE } from '../checkout/customer-payload';
 
-interface QuestionAnswerInput {
-	questionId: string;
-	question: string;
-	answer: string;
-	/** Ids from /api/uploads/presign, for file-upload questions. */
-	fileIds?: string[];
-}
-
-interface CustomerInput {
-	kind: 'new' | 'existing';
-	customerId?: string;
-	email?: string;
-	firstName?: string;
-	lastName?: string;
-	phone?: string;
-}
-
 interface ReserveInput {
 	/** The villa: `slug` looks up its check-in/out times and limits, `productId` must match it. */
 	villa: { productId: string; slug: string };
@@ -38,8 +21,9 @@ interface ReserveInput {
 	locationId?: string | null;
 	/** `{ addOnId, quantity? }[]`; ids are coerced to strings, quantity to an integer 1–20. */
 	addOns?: unknown;
-	customer?: CustomerInput;
-	checkoutQuestionAnswers?: QuestionAnswerInput[];
+	customer?: ExistingOrderCustomer | NewOrderCustomer;
+	/** File-upload answers carry `fileIds` from /api/uploads/presign. */
+	checkoutQuestionAnswers?: CheckoutQuestionAnswer[];
 	/** Guest counts and arrival details; see `sanitizeStayAttributes`. */
 	customAttributes?: Record<string, unknown>;
 	/**
@@ -66,10 +50,10 @@ function isEmail(v: unknown): v is string {
 	return typeof v === 'string' && v.length <= 254 && EMAIL_RE.test(v.trim());
 }
 
-function sanitizeAnswers(input: unknown): QuestionAnswerInput[] {
+function sanitizeAnswers(input: unknown): CheckoutQuestionAnswer[] {
 	if (!Array.isArray(input)) return [];
 	return input
-		.filter((a): a is QuestionAnswerInput => !!a && typeof a.questionId === 'string' && typeof a.answer === 'string')
+		.filter((a): a is CheckoutQuestionAnswer => !!a && typeof a.questionId === 'string' && typeof a.answer === 'string')
 		.map((a) => ({
 			questionId: a.questionId,
 			question: typeof a.question === 'string' ? a.question : '',
@@ -217,16 +201,15 @@ export async function POST(request: NextRequest) {
 				addOns,
 				...(customer && customer.kind === 'existing' && sessionCustomerId && customer.customerId === sessionCustomerId
 					? { customer: { customerId: sessionCustomerId } }
-					: customer && isEmail(customer.email)
+					: customer && 'email' in customer && isEmail(customer.email)
 						? {
-								// Cast: `externalId` is optional in the backend DTO but required in the SDK
-								// types. It isn't sent; the backend matches the customer by email.
+								// No `externalId` is sent; the backend matches the customer by email.
 								customer: {
 									email: customer.email.trim(),
 									...(str(customer.firstName) ? { firstName: str(customer.firstName) } : {}),
 									...(str(customer.lastName) ? { lastName: str(customer.lastName) } : {}),
 									...(str(customer.phone) ? { phone: str(customer.phone) } : {}),
-								} as NewAppointmentCustomer,
+								},
 							}
 						: {}),
 				...(Object.keys(customAttributes).length > 0 ? { customAttributes } : {}),

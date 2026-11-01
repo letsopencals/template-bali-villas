@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import type { CartResponse } from '@opencals/storefront-sdk';
+import type { CartResponse, DiscountCodeErrorResponse } from '@opencals/storefront-sdk';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -20,7 +20,7 @@ const CODE_MESSAGES: Record<string, string> = {
 	CODE_NO_MATCHING_ITEMS: 'That code doesn’t apply to this villa or these extras.',
 	CODE_NO_CREDIT: 'There’s no credit left on that code.',
 	minimum_requirement_not_met: 'This stay doesn’t meet the code’s minimum yet.',
-};
+} satisfies Record<DiscountCodeErrorResponse['code'], string>;
 
 interface PromoCodeProps {
 	cartId: string;

@@ -7,15 +7,18 @@ import type { CustomerProviderCatalogItem, PaymentInstructions } from '@opencals
  */
 
 export type CheckoutMode = CustomerProviderCatalogItem['checkoutMode'];
+export type ProviderName = CustomerProviderCatalogItem['name'];
 
-const PAY_LATER = new Set(['cash', 'bank_transfer', 'stripe_invoice']);
+const PAY_LATER = new Set<ProviderName>(['cash', 'bank_transfer', 'stripe_invoice']);
 
 /**
  * `internal` mounts a card form, `redirect` leaves for the provider, `manual`
  * (cash, bank transfer, invoice) and `none` (nothing to pay) just confirm.
  * Falls back on the name for catalog entries without a mode.
  */
-export function checkoutModeOf(provider: { name: string; checkoutMode?: CheckoutMode | null } | null | undefined): CheckoutMode {
+export function checkoutModeOf(
+	provider: (Pick<CustomerProviderCatalogItem, 'name'> & { checkoutMode?: CheckoutMode | null }) | null | undefined,
+): CheckoutMode {
 	if (provider?.checkoutMode) return provider.checkoutMode;
 	if (provider?.name === 'no_payment_required') return 'none';
 	if (provider && PAY_LATER.has(provider.name)) return 'manual';
@@ -27,7 +30,7 @@ export function confirmsOnly(mode: CheckoutMode | null): boolean {
 }
 
 /** The store's display name, or "bank_transfer" → "Bank transfer". */
-export function providerName(provider: { name: string; displayName?: string | null }): string {
+export function providerName(provider: Pick<CustomerProviderCatalogItem, 'name'> & Partial<Pick<CustomerProviderCatalogItem, 'displayName'>>): string {
 	const display = provider.displayName?.trim();
 	if (display) return display;
 	const words = provider.name.replace(/[_-]+/g, ' ').trim();

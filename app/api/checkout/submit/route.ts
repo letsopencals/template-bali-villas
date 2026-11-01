@@ -25,8 +25,7 @@ export async function POST(request: NextRequest) {
 			// Built here, not taken from the client: a booking is always confirmed straight away.
 			appointmentsSettings: { markAsScheduled: true },
 			...(gclid ? { trackingData: { gclid } } : {}),
-			// Cast: `customer.deliveryAddress` is accepted by the API but missing from SDK 0.3.14 types.
-			...(customer ? { customer: customer as SubmitCheckout['customer'] } : {}),
+			...(customer ? { customer } : {}),
 		};
 		const { data } = await CheckoutService.submit({
 			body,

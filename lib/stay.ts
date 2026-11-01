@@ -1,4 +1,5 @@
 import moment from 'moment-timezone';
+import type { AppointmentDateRangeSlot, CurrentAvailabilitySlot } from '@opencals/storefront-sdk';
 
 /**
  * Pure helpers for nightly villa stays.
@@ -18,20 +19,10 @@ import moment from 'moment-timezone';
  * CONTRACT FILE: owned by the lead. The signatures are stable; agents call them.
  */
 
-export interface AvailabilityRange {
-	fromDate: string;
-	fromTime: string;
-	toDate: string;
-	toTime: string;
-}
+export type AvailabilityRange = Pick<CurrentAvailabilitySlot, 'fromDate' | 'fromTime' | 'toDate' | 'toTime'>;
 
 /** Time part of the appointment slot (all UTC), spread into `/api/reserve`. */
-export interface StaySlotTimes {
-	fromDate: string;
-	fromTime: string;
-	toDate: string;
-	toTime: string;
-}
+export type StaySlotTimes = Pick<AppointmentDateRangeSlot, 'fromDate' | 'fromTime' | 'toDate' | 'toTime'>;
 
 /** Check-in/out times as 'HH:mm' or 'HH:mm:ss' (from product.fixedStartTime/fixedEndTime). */
 export interface StayTimes {

@@ -12,7 +12,7 @@ import { CheckRow } from './check-row';
 import { PromoCode } from './promo-code';
 import { emailHref, whatsappHref } from '@/lib/contact';
 import { fmtDay, type ReserveVilla } from './reserve-model';
-import { checkoutModeOf, confirmsOnly, providerName } from '@/lib/checkout-payment';
+import { checkoutModeOf, confirmsOnly, providerName, type ProviderName } from '@/lib/checkout-payment';
 
 function PaymentLoading({ label = 'Preparing secure payment…' }: { label?: string }) {
 	return (
@@ -55,7 +55,7 @@ const PaymentUnavailable = memo(function PaymentUnavailable({ onRetry, busy, sta
 const StripePayment = dynamic(() => import('./stripe-payment'), { ssr: false, loading: StripeLoading });
 
 /** Shown when the start response says there's nothing to charge. */
-export const NO_PAYMENT = 'no_payment_required';
+export const NO_PAYMENT = 'no_payment_required' satisfies ProviderName;
 
 interface PaymentSectionProps {
 	villa: ReserveVilla;
@@ -75,7 +75,7 @@ interface PaymentSectionProps {
 	error: string | null;
 }
 
-function ProviderChoice({ providers, onPick, busy }: { providers: CustomerProviderCatalogItem[]; onPick(name: string): void; busy: boolean }) {
+function ProviderChoice({ providers, onPick, busy }: { providers: CustomerProviderCatalogItem[]; onPick(name: ProviderName): void; busy: boolean }) {
 	return (
 		<div role="radiogroup" aria-label="How would you like to pay" className="flex flex-col gap-3">
 			{providers.map((p) => (
@@ -126,7 +126,7 @@ export function PaymentSection({
 	const selected = provider ? (providers.find((p) => p.name === provider) ?? { name: provider }) : null;
 	const mode = selected ? checkoutModeOf(selected) : null;
 	// A started card checkout can come back as "nothing to pay" (fully discounted): it only needs a submit.
-	const nothingDue = (paymentData?.provider as string | undefined) === NO_PAYMENT;
+	const nothingDue = paymentData?.provider === NO_PAYMENT;
 	const confirmOnly = nothingDue || confirmsOnly(mode);
 	const confirm = useCallback(() => void (nothingDue ? submitCheckout() : confirmManual()), [nothingDue, submitCheckout, confirmManual]);
 
@@ -229,7 +229,7 @@ export function PaymentSection({
 }
 
 /** What happens after "Confirm booking" for a pay-later method. Never "pay at the villa" for an invoice or transfer. */
-function payLaterCopy(p: { name: string; description?: string | null }): string {
+function payLaterCopy(p: Pick<CustomerProviderCatalogItem, 'name'> & Partial<Pick<CustomerProviderCatalogItem, 'description'>>): string {
 	switch (p.name) {
 		case NO_PAYMENT:
 			return 'Nothing to pay today. Confirm to place your booking.';

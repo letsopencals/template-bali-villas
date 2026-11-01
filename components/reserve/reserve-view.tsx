@@ -250,7 +250,7 @@ export function ReserveView({ villa, initialStay, initialGuests, checkoutSetting
 	const totalLabel = cart ? `Total ${money(cart.total, currency)}` : `${money(villa.price, villa.currency)} / night`;
 	// Pay-later methods and "nothing to pay" confirm instead of paying.
 	const chosen = booking.provider ? (booking.providers.find((p) => p.name === booking.provider) ?? { name: booking.provider }) : null;
-	const noPayment = (booking.paymentData?.provider as string | undefined) === NO_PAYMENT || confirmsOnly(chosen ? checkoutModeOf(chosen) : null);
+	const noPayment = booking.paymentData?.provider === NO_PAYMENT || confirmsOnly(chosen ? checkoutModeOf(chosen) : null);
 	const payLabel = cart ? `Pay ${money(cart.total, currency)}` : 'Pay';
 	const needsRehold = open === 4 && !held;
 	const continueLabel = canHoldEarly && !held ? 'Save and continue' : 'Continue';

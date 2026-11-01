@@ -8,7 +8,9 @@ import type {
 	CartResponse,
 	CheckoutResponse,
 	CheckoutStartResponse,
+	ExistingOrderCustomer,
 	MarketingConsentInput,
+	NewOrderCustomer,
 	ProductListVariant,
 } from '@opencals/storefront-sdk';
 import { nightsBetween } from '@/lib/stay';
@@ -18,7 +20,7 @@ import { buildAnswerPayload, questionsComplete, useCheckoutQuestions } from '@/h
 import { useCartExpiry } from '@/hooks/use-cart-expiry';
 import { useFileUploads } from '@/hooks/use-file-upload';
 import { usePaymentProviders } from '@/hooks/use-payment-providers';
-import { checkoutModeOf, confirmsOnly, keepPaymentInstructions, readCheckoutProblem, type CheckoutProblem } from '@/lib/checkout-payment';
+import { checkoutModeOf, confirmsOnly, keepPaymentInstructions, readCheckoutProblem, type CheckoutProblem, type ProviderName } from '@/lib/checkout-payment';
 
 export interface StayBookingInput {
 	/** The villa product: `id` books, `slug` keys questions, `variant` keys add-ons. */
@@ -130,7 +132,7 @@ export function useStayBooking(input: StayBookingInput) {
 
 	// Hold + payment
 	const [reservation, setReservation] = useState<Reservation | null>(null);
-	const [provider, setProvider] = useState<string | null>(null);
+	const [provider, setProvider] = useState<ProviderName | null>(null);
 	const [paymentData, setPaymentData] = useState<CheckoutStartResponse | null>(null);
 	const [reserving, setReserving] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
@@ -157,17 +159,17 @@ export function useStayBooking(input: StayBookingInput) {
 	);
 
 	const customer = useMemo(
-		() =>
+		(): ExistingOrderCustomer | NewOrderCustomer =>
 			customerId
 				? {
-						kind: 'existing' as const,
+						kind: 'existing',
 						customerId,
 						firstName: firstName.trim() || undefined,
 						lastName: lastName.trim() || undefined,
 						phone: phone.trim() || undefined,
 					}
 				: {
-						kind: 'new' as const,
+						kind: 'new',
 						email: email.trim(),
 						firstName: firstName.trim() || undefined,
 						lastName: lastName.trim() || undefined,
@@ -351,13 +353,14 @@ export function useStayBooking(input: StayBookingInput) {
 			...(marketingConsent ? { marketingConsent } : {}),
 		};
 		return {
-			customer: customerId
-				? // The server forwards customerId only when it matches the session; otherwise it
-					// falls back to the email, so that's always sent.
-					{ customerId, email: customer.email, firstName: customer.firstName, lastName: customer.lastName, phone: customer.phone, ...extra }
-				: { email: customer.email, firstName: customer.firstName, lastName: customer.lastName, phone: customer.phone, ...extra },
+			customer:
+				'customerId' in customer
+					? // The server forwards customerId only when it matches the session; otherwise it
+						// falls back to the email.
+						{ customerId: customer.customerId, firstName: customer.firstName, lastName: customer.lastName, phone: customer.phone, ...extra }
+					: { email: customer.email, firstName: customer.firstName, lastName: customer.lastName, phone: customer.phone, ...extra },
 		};
-	}, [customerId, customer, billingAddress, marketingConsent]);
+	}, [customer, billingAddress, marketingConsent]);
 
 	const goToConfirmation = useCallback(
 		(orderId: string) => {
@@ -405,7 +408,7 @@ export function useStayBooking(input: StayBookingInput) {
 	);
 
 	const startCheckout = useCallback(
-		async (providerName: string): Promise<CheckoutStartResponse> => {
+		async (providerName: ProviderName): Promise<CheckoutStartResponse> => {
 			const res = await postCheckout('/api/checkout/start', cartHeaders(), { provider: providerName, ...checkoutCustomer });
 			if (!res.ok) throw new CheckoutFailure(await readCheckoutProblem(res, 'Could not start checkout'));
 			const data = await readJson<CheckoutStartResponse>(res);
@@ -464,7 +467,7 @@ export function useStayBooking(input: StayBookingInput) {
 	 * confirms with `confirmManual()` once the policy is accepted.
 	 */
 	const selectProvider = useCallback(
-		async (providerName: string) => {
+		async (providerName: ProviderName) => {
 			if (!held) return;
 			const mode = checkoutModeOf(providers.find((p) => p.name === providerName) ?? { name: providerName });
 			setProvider(providerName);
@@ -480,7 +483,7 @@ export function useStayBooking(input: StayBookingInput) {
 					return;
 				}
 				// Nothing to charge (e.g. a 100% promo): the confirm button submits.
-				if ((data.provider as string) !== 'no_payment_required' && !data.clientSecret) {
+				if (data.provider !== 'no_payment_required' && !data.clientSecret) {
 					throw new Error('That way to pay isn’t available online. Choose another, or message us.');
 				}
 				setPaymentData(data);
