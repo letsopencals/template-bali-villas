@@ -17,6 +17,7 @@ import { StaySection } from './stay-section';
 import { AddOnsSection } from './add-ons-section';
 import { EMPTY_ARRIVAL, GuestSection, type ArrivalDraft } from './guest-section';
 import { NO_PAYMENT, PaymentSection } from './payment-section';
+import { checkoutModeOf, confirmsOnly } from '@/lib/checkout-payment';
 import { SummaryPanel } from './summary-panel';
 import { MobileSummary, StickyPayBar } from './mobile-summary';
 import { HoldBar } from './hold-bar';
@@ -247,7 +248,9 @@ export function ReserveView({ villa, initialStay, initialGuests, checkoutSetting
 	const errorFor = (s: Step) => (booking.error && (errorStep ?? open) === s ? booking.error : null);
 	const currency = cart?.paymentCurrencyCode ?? villa.currency;
 	const totalLabel = cart ? `Total ${money(cart.total, currency)}` : `${money(villa.price, villa.currency)} / night`;
-	const noPayment = (booking.paymentData?.provider as string | undefined) === NO_PAYMENT;
+	// Pay-later methods and "nothing to pay" confirm instead of paying.
+	const chosen = booking.provider ? (booking.providers.find((p) => p.name === booking.provider) ?? { name: booking.provider }) : null;
+	const noPayment = (booking.paymentData?.provider as string | undefined) === NO_PAYMENT || confirmsOnly(chosen ? checkoutModeOf(chosen) : null);
 	const payLabel = cart ? `Pay ${money(cart.total, currency)}` : 'Pay';
 	const needsRehold = open === 4 && !held;
 	const continueLabel = canHoldEarly && !held ? 'Save and continue' : 'Continue';

@@ -1,4 +1,4 @@
-import type { AppointmentDetailResponse, AppointmentListItemResponse } from '@opencals/storefront-sdk';
+import type { AppointmentDetailResponse, AppointmentListItemResponse, StorefrontAppointmentPendingReason } from '@opencals/storefront-sdk';
 import { siteConfig } from '@/lib/site-config';
 import { fromStaySlot, stayTimesFor, todayIn, type StayTimes } from '@/lib/stay';
 
@@ -31,6 +31,8 @@ export interface Trip {
 	/** Booking reference shown to the guest ("1042"). */
 	reference: string;
 	status: AppointmentListItemResponse['status'];
+	/** Only for a pending trip with a reason; pending without one is being confirmed (shown as confirmed). */
+	pendingReason: StorefrontAppointmentPendingReason | null;
 	phase: TripPhase;
 	checkin: string;
 	checkout: string;
@@ -114,6 +116,7 @@ export function toTrip(a: AnyAppointment, villa: TripVilla, now: number = Date.n
 		id: a.id,
 		reference: a.name,
 		status: a.status,
+		pendingReason: a.status === 'pending' && a.pendingReason ? a.pendingReason : null,
 		phase,
 		checkin,
 		checkout,
@@ -214,11 +217,12 @@ export function formatMoney(amount: number, currency: string): string {
 
 export type TripTone = 'moss' | 'terracotta' | 'jungle' | 'neutral' | 'danger';
 
-export function tripStatus(trip: Pick<Trip, 'phase' | 'status'>): { label: string; tone: TripTone } {
+export function tripStatus(trip: Pick<Trip, 'phase' | 'status' | 'pendingReason'>): { label: string; tone: TripTone } {
 	if (trip.phase === 'cancelled') return { label: 'Cancelled', tone: 'danger' };
 	if (trip.phase === 'current') return { label: 'Staying now', tone: 'jungle' };
 	if (trip.phase === 'past') return { label: 'Stayed', tone: 'neutral' };
-	if (trip.status === 'pending') return { label: 'Awaiting confirmation', tone: 'terracotta' };
+	if (trip.pendingReason === 'awaiting_payment') return { label: 'Awaiting payment', tone: 'terracotta' };
+	if (trip.pendingReason === 'awaiting_approval') return { label: 'Awaiting confirmation', tone: 'terracotta' };
 	return { label: 'Confirmed', tone: 'moss' };
 }
 

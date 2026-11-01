@@ -1,4 +1,4 @@
-import type { OrderDetailResponse } from '@opencals/storefront-sdk';
+import type { OrderDetailResponse, StorefrontAppointmentPendingReason } from '@opencals/storefront-sdk';
 import { fromStaySlot } from '@/lib/stay';
 import { siteConfig } from '@/lib/site-config';
 import type { GuestCounts } from '@/components/stay/guest-picker';
@@ -23,6 +23,12 @@ export interface ConfirmedStay {
 	flightNumber: string | null;
 	occasion: string | null;
 	addOns: Array<{ id: string; title: string; quantity: number; amount: number }>;
+	/**
+	 * Set only for a `pending` stay with a reason. Right after checkout an
+	 * automatic store's booking is briefly pending without one while it is
+	 * confirmed in the background: that counts as confirmed.
+	 */
+	pendingReason: StorefrontAppointmentPendingReason | null;
 }
 
 const hhmm = (t: string | null | undefined, fallback: string) => (t && /^\d{2}:\d{2}/.test(t) ? t.slice(0, 5) : fallback);
@@ -65,6 +71,7 @@ export function toConfirmedStays(order: OrderDetailResponse): ConfirmedStay[] {
 			flightNumber: text(attrs[keys.flightNumber]),
 			occasion: text(attrs[keys.occasion]),
 			addOns: (li.addOnLineItems ?? []).map((x) => ({ id: x.id, title: x.addOn?.title ?? 'Extra', quantity: x.quantity, amount: x.originalSubtotal })),
+			pendingReason: a.status === 'pending' && a.pendingReason ? a.pendingReason : null,
 		});
 	}
 	return out;
@@ -73,4 +80,11 @@ export function toConfirmedStays(order: OrderDetailResponse): ConfirmedStay[] {
 /** True when any add-on on the order looks like the airport transfer. */
 export function hasTransfer(stays: readonly ConfirmedStay[]): boolean {
 	return stays.some((s) => s.addOns.some((a) => /transfer|airport|pick-?up/i.test(a.title)));
+}
+
+/** What the order still waits for: payment first, then the team's approval; null once every stay is confirmed. */
+export function waitingFor(stays: readonly ConfirmedStay[]): StorefrontAppointmentPendingReason | null {
+	if (stays.some((s) => s.pendingReason === 'awaiting_payment')) return 'awaiting_payment';
+	if (stays.some((s) => s.pendingReason === 'awaiting_approval')) return 'awaiting_approval';
+	return null;
 }

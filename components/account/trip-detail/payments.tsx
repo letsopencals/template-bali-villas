@@ -34,6 +34,7 @@ function paymentBadge(order: Order): { label: string; tone: 'moss' | 'terracotta
 	if (order.refundStatus === 'partially-refunded') return { label: 'Partly refunded', tone: 'neutral' };
 	if (order.paymentStatus === 'paid' || order.isFullyPaid) return { label: 'Paid', tone: 'moss' };
 	if (order.paymentStatus === 'partially-paid') return { label: 'Partly paid', tone: 'terracotta' };
+	if (order.paymentStatus === 'voided') return { label: 'Cancelled — not charged', tone: 'neutral' };
 	return { label: 'Not paid yet', tone: 'terracotta' };
 }
 

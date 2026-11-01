@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useId, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { clsx } from 'clsx';
 import type { CartResponse, CustomerProviderCatalogItem } from '@opencals/storefront-sdk';
@@ -12,6 +12,7 @@ import { CheckRow } from './check-row';
 import { PromoCode } from './promo-code';
 import { emailHref, whatsappHref } from '@/lib/contact';
 import { fmtDay, type ReserveVilla } from './reserve-model';
+import { checkoutModeOf, confirmsOnly, providerName } from '@/lib/checkout-payment';
 
 function PaymentLoading({ label = 'Preparing secure payment…' }: { label?: string }) {
 	return (
@@ -88,7 +89,7 @@ function ProviderChoice({ providers, onPick, busy }: { providers: CustomerProvid
 					className="flex items-center justify-between gap-4 rounded-[20px] border border-line-strong bg-cream px-5 py-4 text-left transition-colors hover:border-terracotta disabled:opacity-50"
 				>
 					<span>
-						<span className="block font-medium">{p.displayName}</span>
+						<span className="block font-medium">{providerName(p)}</span>
 						{p.description ? <span className="block text-[0.85rem] text-ink-muted">{p.description}</span> : null}
 					</span>
 					<span aria-hidden className="h-4 w-4 shrink-0 rounded-full border border-line-strong" />
@@ -116,19 +117,25 @@ export function PaymentSection({
 }: PaymentSectionProps) {
 	const uid = useId();
 	const [rulesOpen, setRulesOpen] = useState(false);
-	const { providers, provider, paymentData, selectProvider, submitCheckout, submitting, providersLoaded, providersFailed, providerFailed } = booking;
+	const { providers, provider, paymentData, selectProvider, submitCheckout, confirmManual, changeProvider, submitting, providersLoaded, providersFailed, providerFailed } =
+		booking;
 	// Single provider whose start failed, or nothing to pick from once the list is in.
 	const unavailable = !provider && !submitting && (providersFailed || (providersLoaded && providers.length === 0) || (providerFailed && providers.length === 1));
-	const responseProvider = paymentData?.provider as string | undefined;
-	const manual = responseProvider === 'cash' || responseProvider === 'bank_transfer';
-	const confirmOnly = responseProvider === NO_PAYMENT || manual;
+	// Route on the chosen method's checkoutMode, not its name: pay-later methods (cash, bank transfer, invoice)
+	// and "nothing to pay" confirm with one button; card methods mount Stripe.
+	const selected = provider ? (providers.find((p) => p.name === provider) ?? { name: provider }) : null;
+	const mode = selected ? checkoutModeOf(selected) : null;
+	// A started card checkout can come back as "nothing to pay" (fully discounted): it only needs a submit.
+	const nothingDue = (paymentData?.provider as string | undefined) === NO_PAYMENT;
+	const confirmOnly = nothingDue || confirmsOnly(mode);
+	const confirm = useCallback(() => void (nothingDue ? submitCheckout() : confirmManual()), [nothingDue, submitCheckout, confirmManual]);
 
 	// Confirm-only branches register their own trigger for the sticky bar.
 	useEffect(() => {
 		if (!confirmOnly) return;
-		registerPay(policyAccepted && !submitting ? () => void submitCheckout() : null);
+		registerPay(policyAccepted && !submitting ? confirm : null);
 		return () => registerPay(null);
-	}, [confirmOnly, policyAccepted, submitting, submitCheckout, registerPay]);
+	}, [confirmOnly, policyAccepted, submitting, confirm, registerPay]);
 
 	if (rehold) {
 		return (
@@ -175,7 +182,7 @@ export function PaymentSection({
 				) : null}
 			</div>
 
-			{paymentData?.provider === 'stripe' && paymentData.clientSecret ? (
+			{!nothingDue && mode === 'internal' && paymentData?.clientSecret ? (
 				<div className={clsx('transition-opacity duration-300', !policyAccepted && 'opacity-70')}>
 					<StripePayment
 						key={paymentData.clientSecret}
@@ -192,14 +199,8 @@ export function PaymentSection({
 				</div>
 			) : confirmOnly ? (
 				<div className="flex flex-col gap-4">
-					<p className="text-[0.95rem]">
-						{responseProvider === NO_PAYMENT
-							? 'Nothing to pay today. Confirm and the villa is yours.'
-							: manual
-								? (providers.find((p) => p.name === responseProvider)?.description ?? 'You pay our team directly. Details are in your confirmation email.')
-								: null}
-					</p>
-					<Button variant="primary" size="lg" pill fullWidth onClick={() => void submitCheckout()} disabled={!policyAccepted || submitting}>
+					<p className="text-[0.95rem]">{nothingDue ? payLaterCopy({ name: NO_PAYMENT }) : payLaterCopy(selected ?? { name: NO_PAYMENT })}</p>
+					<Button variant="primary" size="lg" pill fullWidth onClick={confirm} disabled={!policyAccepted || submitting}>
 						{submitting ? 'Confirming…' : 'Confirm booking'}
 					</Button>
 				</div>
@@ -211,14 +212,36 @@ export function PaymentSection({
 				<PaymentLoading />
 			)}
 
+			{provider && providers.length > 1 && !submitting ? (
+				<button type="button" onClick={changeProvider} className="link-underline self-start text-[0.9rem] font-medium text-terracotta-deep">
+					Pay another way
+				</button>
+			) : null}
+
 			{error ? <SectionError>{error}</SectionError> : null}
-			{paymentData?.provider === 'stripe' ? (
+			{!nothingDue && mode === 'internal' && paymentData?.clientSecret ? (
 				<p className="flex items-center gap-2 text-[0.8rem] text-ink-muted">
 					<LockGlyph /> Payments are encrypted and processed by Stripe. We never see your card.
 				</p>
 			) : null}
 		</div>
 	);
+}
+
+/** What happens after "Confirm booking" for a pay-later method. Never "pay at the villa" for an invoice or transfer. */
+function payLaterCopy(p: { name: string; description?: string | null }): string {
+	switch (p.name) {
+		case NO_PAYMENT:
+			return 'Nothing to pay today. Confirm to place your booking.';
+		case 'cash':
+			return p.description?.trim() || 'Nothing is charged now. You pay our team at the villa.';
+		case 'bank_transfer':
+			return 'Nothing is charged now. Once you confirm, we show our bank details and your reference, and email them to you.';
+		case 'stripe_invoice':
+			return 'Nothing is charged now. Once you confirm, we email you an invoice with a secure link to pay online.';
+		default:
+			return p.description?.trim() || 'Nothing is charged now. Once you confirm, we email you how to pay.';
+	}
 }
 
 export function LockGlyph({ className = 'h-3.5 w-3.5' }: { className?: string }) {

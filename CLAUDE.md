@@ -136,8 +136,12 @@ Each villa is one product with a one-night base duration (86400 s),
   are **not** part of the slot. They travel as appointment `customAttributes`
   (keys in `siteConfig.customAttributeKeys`), sanitised by
   `lib/reserve-attributes.ts`. Use `guestsToAttributes` from `lib/guests.ts`.
-- Checkout submits with `appointmentsSettings.markAsScheduled: true`, then goes
-  to `/reserve/confirmed/{orderId}`.
+- Checkout routes on the provider's `checkoutMode` (card form for `internal`,
+  one confirm button that starts and submits for `manual`/`none`), then goes to
+  `/reserve/confirmed/{orderId}`. The store decides confirmation: a booking is
+  only "awaiting" when it is `pending` with a `pendingReason`. Payment
+  instructions (bank details, invoice link) from submit are kept in
+  sessionStorage for the confirmation page (`lib/checkout-payment.ts`).
 
 ### Design
 - Fonts come from next/font in the layout: Fraunces with the `opsz`, `SOFT`

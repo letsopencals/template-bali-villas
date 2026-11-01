@@ -6,6 +6,7 @@ import { signIn, useSession } from 'next-auth/react';
 import type {
 	BillingAddress,
 	CartResponse,
+	CheckoutResponse,
 	CheckoutStartResponse,
 	MarketingConsentInput,
 	ProductListVariant,
@@ -17,6 +18,7 @@ import { buildAnswerPayload, questionsComplete, useCheckoutQuestions } from '@/h
 import { useCartExpiry } from '@/hooks/use-cart-expiry';
 import { useFileUploads } from '@/hooks/use-file-upload';
 import { usePaymentProviders } from '@/hooks/use-payment-providers';
+import { checkoutModeOf, confirmsOnly, keepPaymentInstructions, readCheckoutProblem, type CheckoutProblem } from '@/lib/checkout-payment';
 
 export interface StayBookingInput {
 	/** The villa product: `id` books, `slug` keys questions, `variant` keys add-ons. */
@@ -59,6 +61,25 @@ async function readJson<T>(res: Response): Promise<T | null> {
 	return (await res.json().catch(() => null)) as T | null;
 }
 
+class CheckoutFailure extends Error {
+	constructor(readonly problem: CheckoutProblem) {
+		super(problem.message);
+	}
+}
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** POST to a checkout route, waiting out 409 CHECKOUT_IN_PROGRESS (a double tap, a second tab) a few times. */
+async function postCheckout(url: string, headers: Record<string, string>, body: object): Promise<Response> {
+	for (let attempt = 0; ; attempt++) {
+		const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+		if (res.status !== 409 || attempt >= 3) return res;
+		const peek = await readJson<{ code?: string }>(res.clone());
+		if (peek?.code !== 'CHECKOUT_IN_PROGRESS') return res;
+		await pause(1500 * (attempt + 1));
+	}
+}
+
 /**
  * Single-page villa reservation (`/reserve/[slug]`).
  *
@@ -67,9 +88,9 @@ async function readJson<T>(res: Response): Promise<T | null> {
  * later change to dates, add-ons, answers or details marks the hold `stale`,
  * and the next `reserve()` replaces it (`replaceItemId`) so the old hold never
  * blocks the new dates. Payment uses the hold's own cart id and expiry,
- * independent of the cart context. Checkout submits with
- * `appointmentsSettings.markAsScheduled: true`, then routes to
- * `/reserve/confirmed/{orderId}`.
+ * independent of the cart context. Checkout routes to
+ * `/reserve/confirmed/{orderId}`; the store decides whether the booking is
+ * confirmed straight away or waits for payment or approval (`pendingReason`).
  */
 export function useStayBooking(input: StayBookingInput) {
 	const { villa, stay, locationId, customAttributes, onSlotUnavailable, billingAddress, marketingConsent } = input;
@@ -338,81 +359,165 @@ export function useStayBooking(input: StayBookingInput) {
 		};
 	}, [customerId, customer, billingAddress, marketingConsent]);
 
+	const goToConfirmation = useCallback(
+		(orderId: string) => {
+			clearCart();
+			router.push(`/reserve/confirmed/${encodeURIComponent(orderId)}`);
+		},
+		[clearCart, router],
+	);
+
+	/** Says what went wrong with a start/submit and recovers where it can. */
+	const handleCheckoutFailure = useCallback(
+		(err: unknown, during: 'start' | 'submit', fallback: string) => {
+			const problem = err instanceof CheckoutFailure ? err.problem : null;
+			if (problem?.code === 'CART_ALREADY_CHECKED_OUT' && problem.orderId) {
+				// This hold is already a booking (another tab, a retried request): show it.
+				goToConfirmation(problem.orderId);
+				return;
+			}
+			if (problem?.code === 'CART_EXPIRED') {
+				setProvider(null);
+				setPaymentData(null);
+				setReservation(null);
+				setSlotTaken(true);
+				setError('Your hold ran out and some of those nights were booked in the meantime. Pick new dates to try again.');
+				onSlotUnavailable?.();
+				return;
+			}
+			if (problem?.code === 'CHECKOUT_IN_PROGRESS') {
+				setError('We’re still processing this booking. Give it a few seconds, then try again.');
+				return;
+			}
+			if (problem?.code === 'PAYMENT_NOT_AUTHORIZED' || problem?.status === 402) {
+				// No booking was made and the card form stays: pay again or use another card.
+				setError('Your card wasn’t authorised, so nothing was charged. Try again or use another card.');
+				return;
+			}
+			setError(err instanceof Error && err.message ? err.message : fallback);
+			if (during === 'start') {
+				setProvider(null);
+				setPaymentData(null);
+				setProviderFailed(true);
+			}
+		},
+		[goToConfirmation, onSlotUnavailable],
+	);
+
+	const startCheckout = useCallback(
+		async (providerName: string): Promise<CheckoutStartResponse> => {
+			const res = await postCheckout('/api/checkout/start', cartHeaders(), { provider: providerName, ...checkoutCustomer });
+			if (!res.ok) throw new CheckoutFailure(await readCheckoutProblem(res, 'Could not start checkout'));
+			const data = await readJson<CheckoutStartResponse>(res);
+			if (!data) throw new Error('Could not start checkout');
+			return data;
+		},
+		[cartHeaders, checkoutCustomer],
+	);
+
+	const placeOrder = useCallback(
+		async (stripePaymentIntentId?: string) => {
+			const res = await postCheckout('/api/checkout/submit', cartHeaders(), {
+				...checkoutCustomer,
+				...(stripePaymentIntentId ? { stripePaymentIntentId } : {}),
+			});
+			if (!res.ok) throw new CheckoutFailure(await readCheckoutProblem(res, 'Checkout failed'));
+			const data = await readJson<CheckoutResponse>(res);
+			const orderId = data?.order?.id;
+			if (!orderId) {
+				throw new Error('We couldn’t confirm your reservation. Please check your email before trying again, or message us.');
+			}
+			keepPaymentInstructions(orderId, data.paymentInstructions);
+			if (data.auth?.accessToken) {
+				// The provider verifies the token and builds the session from the API profile.
+				await signIn('checkout-token', {
+					accessToken: data.auth.accessToken,
+					refreshToken: data.auth.refreshToken ?? '',
+					redirect: false,
+				});
+			}
+			goToConfirmation(orderId);
+		},
+		[cartHeaders, checkoutCustomer, goToConfirmation],
+	);
+
+	/** Places the order: after a card payment (with its PaymentIntent) or when nothing is due. */
 	const submitCheckout = useCallback(
 		async (stripePaymentIntentId?: string) => {
 			setSubmitting(true);
 			setError(null);
 			try {
-				const res = await fetch('/api/checkout/submit', {
-					method: 'POST',
-					headers: cartHeaders(),
-					body: JSON.stringify({
-						...checkoutCustomer,
-						...(stripePaymentIntentId ? { stripePaymentIntentId } : {}),
-					}),
-				});
-				const data = await readJson<{
-					error?: string;
-					order?: { id?: string };
-					customer?: { id?: string; email?: string; firstName?: string; lastName?: string };
-					auth?: { accessToken?: string; refreshToken?: string };
-				}>(res);
-				if (!res.ok) throw new Error(data?.error || 'Checkout failed');
-				const orderId = data?.order?.id;
-				if (!orderId) {
-					throw new Error(
-						'We couldn’t confirm your reservation. Please check your email before trying again, or message us.',
-					);
-				}
-				if (data?.auth?.accessToken) {
-					// The provider verifies the token and builds the session from the API profile.
-					await signIn('checkout-token', {
-						accessToken: data.auth.accessToken,
-						refreshToken: data.auth.refreshToken ?? '',
-						redirect: false,
-					});
-				}
-				clearCart();
-				router.push(`/reserve/confirmed/${encodeURIComponent(orderId)}`);
+				await placeOrder(stripePaymentIntentId);
 			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Checkout failed');
-				setSubmitting(false);
-			}
-		},
-		[cartHeaders, checkoutCustomer, clearCart, router],
-	);
-
-	const selectProvider = useCallback(
-		async (providerName: string) => {
-			if (!held) return;
-			setProvider(providerName);
-			setPaymentData(null);
-			setError(null);
-			setProviderFailed(false);
-			setSubmitting(true);
-			try {
-				const res = await fetch('/api/checkout/start', {
-					method: 'POST',
-					headers: cartHeaders(),
-					body: JSON.stringify({ provider: providerName, ...checkoutCustomer }),
-				});
-				const data = await readJson<CheckoutStartResponse & { error?: string }>(res);
-				if (!res.ok || !data) throw new Error(data?.error || 'Could not start checkout');
-				if (data.redirectUrl) {
-					window.location.href = data.redirectUrl;
-					return;
-				}
-				setPaymentData(data);
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Could not start checkout');
-				setProvider(null);
-				setProviderFailed(true);
+				handleCheckoutFailure(err, 'submit', 'Checkout failed');
 			} finally {
 				setSubmitting(false);
 			}
 		},
-		[held, cartHeaders, checkoutCustomer],
+		[placeOrder, handleCheckoutFailure],
 	);
+
+	/**
+	 * Picks how to pay. Card methods start checkout so the form can mount;
+	 * redirect methods leave for the provider; pay-later methods (cash, bank
+	 * transfer, invoice) and "nothing to pay" only select, and the guest
+	 * confirms with `confirmManual()` once the policy is accepted.
+	 */
+	const selectProvider = useCallback(
+		async (providerName: string) => {
+			if (!held) return;
+			const mode = checkoutModeOf(providers.find((p) => p.name === providerName) ?? { name: providerName });
+			setProvider(providerName);
+			setPaymentData(null);
+			setError(null);
+			setProviderFailed(false);
+			if (confirmsOnly(mode)) return;
+			setSubmitting(true);
+			try {
+				const data = await startCheckout(providerName);
+				if (data.redirectUrl) {
+					window.location.href = data.redirectUrl;
+					return;
+				}
+				// Nothing to charge (e.g. a 100% promo): the confirm button submits.
+				if ((data.provider as string) !== 'no_payment_required' && !data.clientSecret) {
+					throw new Error('That way to pay isn’t available online. Choose another, or message us.');
+				}
+				setPaymentData(data);
+			} catch (err) {
+				handleCheckoutFailure(err, 'start', 'Could not start checkout');
+			} finally {
+				setSubmitting(false);
+			}
+		},
+		[held, providers, startCheckout, handleCheckoutFailure],
+	);
+
+	/** Pay-later or nothing-to-pay methods: start and submit checkout together. */
+	const confirmManual = useCallback(async () => {
+		if (!held || !provider) return;
+		setSubmitting(true);
+		setError(null);
+		try {
+			const data = await startCheckout(provider);
+			if (data.redirectUrl) {
+				window.location.href = data.redirectUrl;
+				return;
+			}
+			await placeOrder();
+		} catch (err) {
+			handleCheckoutFailure(err, 'submit', 'We couldn’t confirm the booking');
+		} finally {
+			setSubmitting(false);
+		}
+	}, [held, provider, startCheckout, placeOrder, handleCheckoutFailure]);
+
+	/** Back to the list of ways to pay. */
+	const changeProvider = useCallback(() => {
+		setProvider(null);
+		setPaymentData(null);
+		setError(null);
+	}, []);
 
 	const clearProviderFailed = useCallback(() => setProviderFailed(false), []);
 
@@ -463,6 +568,8 @@ export function useStayBooking(input: StayBookingInput) {
 		provider,
 		paymentData,
 		selectProvider,
+		confirmManual,
+		changeProvider,
 		submitCheckout,
 		submitting,
 		error,

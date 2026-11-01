@@ -1,10 +1,10 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
-import type { OrderDetailResponse } from '@opencals/storefront-sdk';
+import type { OrderDetailResponse, PaymentInstructions, StorefrontAppointmentPendingReason } from '@opencals/storefront-sdk';
 import { fetcher } from '@/lib/fetcher';
 import { siteConfig } from '@/lib/site-config';
 import { Reveal } from '@/components/motion/reveal';
@@ -14,7 +14,9 @@ import { CanangSari } from '@/components/motifs/canang-sari';
 import { IkatRule } from '@/components/motifs/ikat-rule';
 import { formatGuests } from '@/components/stay/guest-picker';
 import { fmtLongDay, money, plural } from '../reserve-model';
-import { hasTransfer, toConfirmedStays, type ConfirmedStay } from './confirmed-model';
+import { hasTransfer, toConfirmedStays, waitingFor, type ConfirmedStay } from './confirmed-model';
+import { HowToPay } from './how-to-pay';
+import { readPaymentInstructions } from '@/lib/checkout-payment';
 import { icsHref } from './ics';
 
 const SWR_OPTS = { revalidateOnFocus: false, errorRetryCount: 3 };
@@ -39,6 +41,12 @@ function gettingThere(transfer: boolean): ReadonlyArray<{ title: string; body: s
 		{ title: 'Arrive from 15:00', body: 'A host meets you at the gate with something cold. Reception is open until 22:00 and on call through the night.' },
 	];
 }
+
+const STAY_STATUS: Record<StorefrontAppointmentPendingReason | 'confirmed', string> = {
+	confirmed: 'Confirmed',
+	awaiting_payment: 'Awaiting payment',
+	awaiting_approval: 'Awaiting our confirmation',
+};
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
 	return (
@@ -69,6 +77,9 @@ const StayCard = memo(function StayCard({ stay, currency }: { stay: ConfirmedSta
 							<span className="text-ink-muted"> · by {stay.checkOutTime} WITA</span>
 						</Row>
 						<Row label="Stay">{plural(stay.nights, 'night', 'nights')}</Row>
+						<Row label="Status">
+							<span className={stay.pendingReason ? 'text-terracotta-deep' : undefined}>{STAY_STATUS[stay.pendingReason ?? 'confirmed']}</span>
+						</Row>
 						<Row label="Guests">{formatGuests(stay.guests)}</Row>
 						{stay.arrivalTime ? <Row label="Arriving">{stay.arrivalTime}</Row> : null}
 						{stay.flightNumber ? <Row label="Flight">{stay.flightNumber}</Row> : null}
@@ -132,13 +143,44 @@ export function ConfirmedView({ orderId }: ConfirmedViewProps) {
 	const email = order?.customerEmail ?? order?.customer?.email ?? null;
 	const firstStay = stays[0] ?? null;
 	const steps = gettingThere(hasTransfer(stays));
-	const paid = order ? (order.paidTotal > 0 ? order.paidTotal : order.total) : 0;
+	// Payment instructions only come back from checkout submit; they're kept for this tab (read after mount).
+	const [instructions, setInstructions] = useState<PaymentInstructions | null>(null);
+	useEffect(() => {
+		setInstructions(readPaymentInstructions(orderId));
+	}, [orderId]);
+
+	// "Awaiting" only for pending stays with a reason; pending without one is being confirmed right now.
+	const waiting = waitingFor(stays);
+	const voided = order?.paymentStatus === 'voided';
+	const owes = order ? !order.isFullyPaid && order.paymentStatus !== 'paid' && !voided && order.balance > 0 : false;
+	const showHowToPay = instructions !== null || (owes && (waiting === 'awaiting_payment' || Boolean(order?.paymentDueAt)));
+	const bookingState =
+		waiting === 'awaiting_payment'
+			? 'Awaiting payment'
+			: waiting === 'awaiting_approval'
+				? 'Awaiting confirmation'
+				: order && stays.length > 0
+					? 'Confirmed'
+					: 'Received';
+	const lead =
+		waiting === 'awaiting_payment'
+			? 'We have your booking and hold the villa until your payment arrives. Then it is confirmed.'
+			: waiting === 'awaiting_approval'
+				? 'We have your booking. Our team looks it over and emails you as soon as it is confirmed.'
+				: order && stays.length > 0
+					? 'Your villa is booked.'
+					: 'We have your booking.';
+	const balanceNote = voided
+		? 'Cancelled — not charged.'
+		: order && order.balance > 0
+			? `${instructions?.provider === 'cash' ? 'Balance due at the villa' : 'Still to pay'}: ${money(order.balance, currency)}`
+			: null;
 
 	return (
 		<section className="container-x pb-24 pt-32 lg:pb-32 lg:pt-40">
 			<div className="mx-auto max-w-[68rem]">
 				<Reveal>
-					<p className="label">{reference ? `Booking ${reference}` : 'Booking received'}</p>
+					<p className="label">{reference ? `Booking ${reference} · ${bookingState}` : `Booking ${bookingState.toLowerCase()}`}</p>
 				</Reveal>
 				<Reveal delay={0.06}>
 					<h1 className="display-md mt-4">
@@ -147,11 +189,13 @@ export function ConfirmedView({ orderId }: ConfirmedViewProps) {
 				</Reveal>
 				<Reveal delay={0.12}>
 					<p className="mt-5 max-w-xl text-[1.05rem] leading-relaxed text-ink-muted">
-						Terima kasih{firstName ? `, ${firstName}` : ''}. Your villa is booked.{' '}
+						Terima kasih{firstName ? `, ${firstName}` : ''}. {lead}{' '}
 						{email ? (
 							<>
-								A confirmation is on its way to <span className="text-ink">{email}</span>.
+								{waiting ? 'The details are on their way to' : 'A confirmation is on its way to'} <span className="text-ink">{email}</span>.
 							</>
+						) : waiting ? (
+							'The details are on their way by email.'
 						) : (
 							'A confirmation is on its way by email.'
 						)}{' '}
@@ -191,11 +235,13 @@ export function ConfirmedView({ orderId }: ConfirmedViewProps) {
 					</div>
 
 					<aside className="flex flex-col gap-6 lg:sticky lg:top-28 lg:self-start">
+						{showHowToPay ? <HowToPay instructions={instructions} reference={reference} paymentDueAt={order?.paymentDueAt ?? null} /> : null}
+
 						{order ? (
 							<div className="on-dark rounded-[24px] bg-jungle p-6 text-cream">
-								<p className="label">Total paid</p>
-								<p className="tabular mt-2 font-display text-[2rem] leading-none">{money(paid, currency)}</p>
-								{order.balance > 0 ? <p className="mt-2 text-[0.86rem] text-cream/70">Balance due at the villa: {money(order.balance, currency)}</p> : null}
+								<p className="label">{order.paidTotal > 0 ? 'Total paid' : 'Total'}</p>
+								<p className="tabular mt-2 font-display text-[2rem] leading-none">{money(order.paidTotal > 0 ? order.paidTotal : order.total, currency)}</p>
+								{balanceNote ? <p className="mt-2 text-[0.86rem] text-cream/70">{balanceNote}</p> : null}
 								<p className="mt-4 text-[0.86rem] text-cream/70">
 									Reference <span className="tabular text-cream">{reference}</span>
 								</p>

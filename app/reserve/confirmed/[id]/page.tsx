@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ConfirmedView } from '@/components/reserve/confirmed/confirmed-view';
 
-export const metadata: Metadata = { title: 'Booking confirmed', robots: { index: false } };
+export const metadata: Metadata = { title: 'Your booking', robots: { index: false } };
 
 type Params = Promise<{ id: string }>;
 
