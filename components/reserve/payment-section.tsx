@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useId, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { clsx } from 'clsx';
-import type { CartResponse, CustomerProviderCatalogItem } from '@opencals/storefront-sdk';
+import type { CartResponse, CustomerProviderCatalogItem, PaymentProviderName } from '@opencals/storefront-sdk';
 import { Button } from '@/components/ui/button';
 import { CanangSari } from '@/components/motifs/canang-sari';
 import type { StayBooking } from '@/hooks/use-stay-booking';
@@ -12,7 +12,7 @@ import { CheckRow } from './check-row';
 import { PromoCode } from './promo-code';
 import { emailHref, whatsappHref } from '@/lib/contact';
 import { fmtDay, type ReserveVilla } from './reserve-model';
-import { checkoutModeOf, confirmsOnly, providerName, type ProviderName } from '@/lib/checkout-payment';
+import { checkoutModeOf, confirmsOnly, providerName } from '@/lib/checkout-payment';
 
 function PaymentLoading({ label = 'Preparing secure payment…' }: { label?: string }) {
 	return (
@@ -55,7 +55,7 @@ const PaymentUnavailable = memo(function PaymentUnavailable({ onRetry, busy, sta
 const StripePayment = dynamic(() => import('./stripe-payment'), { ssr: false, loading: StripeLoading });
 
 /** Shown when the start response says there's nothing to charge. */
-export const NO_PAYMENT = 'no_payment_required' satisfies ProviderName;
+export const NO_PAYMENT = 'no_payment_required' satisfies PaymentProviderName;
 
 interface PaymentSectionProps {
 	villa: ReserveVilla;
@@ -75,7 +75,7 @@ interface PaymentSectionProps {
 	error: string | null;
 }
 
-function ProviderChoice({ providers, onPick, busy }: { providers: CustomerProviderCatalogItem[]; onPick(name: ProviderName): void; busy: boolean }) {
+function ProviderChoice({ providers, onPick, busy }: { providers: CustomerProviderCatalogItem[]; onPick(name: PaymentProviderName): void; busy: boolean }) {
 	return (
 		<div role="radiogroup" aria-label="How would you like to pay" className="flex flex-col gap-3">
 			{providers.map((p) => (

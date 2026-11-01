@@ -6,11 +6,13 @@ import { signIn, useSession } from 'next-auth/react';
 import type {
 	BillingAddress,
 	CartResponse,
+	CheckoutErrorResponse,
 	CheckoutResponse,
 	CheckoutStartResponse,
 	ExistingOrderCustomer,
 	MarketingConsentInput,
 	NewOrderCustomer,
+	PaymentProviderName,
 	ProductListVariant,
 } from '@opencals/storefront-sdk';
 import { nightsBetween } from '@/lib/stay';
@@ -20,7 +22,7 @@ import { buildAnswerPayload, questionsComplete, useCheckoutQuestions } from '@/h
 import { useCartExpiry } from '@/hooks/use-cart-expiry';
 import { useFileUploads } from '@/hooks/use-file-upload';
 import { usePaymentProviders } from '@/hooks/use-payment-providers';
-import { checkoutModeOf, confirmsOnly, keepPaymentInstructions, readCheckoutProblem, type CheckoutProblem, type ProviderName } from '@/lib/checkout-payment';
+import { checkoutModeOf, confirmsOnly, keepPaymentInstructions, readCheckoutProblem, type CheckoutProblem } from '@/lib/checkout-payment';
 
 export interface StayBookingInput {
 	/** The villa product: `id` books, `slug` keys questions, `variant` keys add-ons. */
@@ -76,7 +78,7 @@ async function postCheckout(url: string, headers: Record<string, string>, body: 
 	for (let attempt = 0; ; attempt++) {
 		const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
 		if (res.status !== 409 || attempt >= 3) return res;
-		const peek = await readJson<{ code?: string }>(res.clone());
+		const peek = await readJson<Partial<CheckoutErrorResponse>>(res.clone());
 		if (peek?.code !== 'CHECKOUT_IN_PROGRESS') return res;
 		await pause(1500 * (attempt + 1));
 	}
@@ -132,7 +134,7 @@ export function useStayBooking(input: StayBookingInput) {
 
 	// Hold + payment
 	const [reservation, setReservation] = useState<Reservation | null>(null);
-	const [provider, setProvider] = useState<ProviderName | null>(null);
+	const [provider, setProvider] = useState<PaymentProviderName | null>(null);
 	const [paymentData, setPaymentData] = useState<CheckoutStartResponse | null>(null);
 	const [reserving, setReserving] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
@@ -415,7 +417,7 @@ export function useStayBooking(input: StayBookingInput) {
 	);
 
 	const startCheckout = useCallback(
-		async (providerName: ProviderName): Promise<CheckoutStartResponse> => {
+		async (providerName: PaymentProviderName): Promise<CheckoutStartResponse> => {
 			const res = await postCheckout('/api/checkout/start', cartHeaders(), { provider: providerName, ...checkoutCustomer });
 			if (!res.ok) throw new CheckoutFailure(await readCheckoutProblem(res, 'Could not start checkout'));
 			const data = await readJson<CheckoutStartResponse>(res);
@@ -474,7 +476,7 @@ export function useStayBooking(input: StayBookingInput) {
 	 * confirms with `confirmManual()` once the policy is accepted.
 	 */
 	const selectProvider = useCallback(
-		async (providerName: ProviderName) => {
+		async (providerName: PaymentProviderName) => {
 			if (!held) return;
 			const mode = checkoutModeOf(providers.find((p) => p.name === providerName) ?? { name: providerName });
 			setProvider(providerName);

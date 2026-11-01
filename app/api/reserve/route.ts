@@ -1,6 +1,12 @@
 import '@/lib/opencals';
 import { AppointmentService, CartService, CheckoutService, OpencalsApiError } from '@opencals/storefront-sdk';
-import type { CartResponse, CheckoutQuestionAnswer, ExistingOrderCustomer, NewOrderCustomer } from '@opencals/storefront-sdk';
+import type {
+	CartResponse,
+	CheckoutQuestionAnswer,
+	ExistingAppointmentCustomer,
+	NewAppointmentCustomer,
+	NewOrderCustomer,
+} from '@opencals/storefront-sdk';
 import { getAccessToken, getSessionCustomerId } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
@@ -12,6 +18,12 @@ import { publicPayload } from '@/lib/public-payload';
 import { guestLimitError, isRealDate, sanitizeAddOns } from '../_lib/guards';
 import { EMAIL_RE } from '../checkout/customer-payload';
 
+/**
+ * The appointment customer. The client sends its checkout customer here; only these fields are read. `phone` isn't
+ * on the SDK's NewAppointmentCustomer, but the API stores it on a new customer, so it's still passed through.
+ */
+type ReserveCustomer = ExistingAppointmentCustomer | (NewAppointmentCustomer & Pick<NewOrderCustomer, 'phone'>);
+
 interface ReserveInput {
 	/** The villa: `slug` looks up its check-in/out times and limits, `productId` must match it. */
 	villa: { productId: string; slug: string };
@@ -21,7 +33,7 @@ interface ReserveInput {
 	locationId?: string | null;
 	/** `{ addOnId, quantity? }[]`; ids are coerced to strings, quantity to an integer 1–20. */
 	addOns?: unknown;
-	customer?: ExistingOrderCustomer | NewOrderCustomer;
+	customer?: ReserveCustomer;
 	/** File-upload answers carry `fileIds` from /api/uploads/presign. */
 	checkoutQuestionAnswers?: CheckoutQuestionAnswer[];
 	/** Guest counts and arrival details; see `sanitizeStayAttributes`. */

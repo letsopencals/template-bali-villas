@@ -1,4 +1,10 @@
-import type { CustomerProviderCatalogItem, PaymentInstructions } from '@opencals/storefront-sdk';
+import type {
+	CheckoutErrorCode,
+	CheckoutErrorResponse,
+	CustomerProviderCatalogItem,
+	PaymentInstructions,
+	PaymentProviderName,
+} from '@opencals/storefront-sdk';
 
 /**
  * Checkout helpers for `/reserve/[slug]` and `/reserve/confirmed/[id]`: how a
@@ -7,9 +13,7 @@ import type { CustomerProviderCatalogItem, PaymentInstructions } from '@opencals
  */
 
 export type CheckoutMode = CustomerProviderCatalogItem['checkoutMode'];
-export type ProviderName = CustomerProviderCatalogItem['name'];
-
-const PAY_LATER = new Set<ProviderName>(['cash', 'bank_transfer', 'stripe_invoice']);
+const PAY_LATER = new Set<PaymentProviderName>(['cash', 'bank_transfer', 'stripe_invoice']);
 
 /**
  * `internal` mounts a card form, `redirect` leaves for the provider, `manual`
@@ -37,12 +41,9 @@ export function providerName(provider: Pick<CustomerProviderCatalogItem, 'name'>
 	return words ? words[0]!.toUpperCase() + words.slice(1) : 'Pay';
 }
 
-export interface CheckoutProblem {
+export interface CheckoutProblem extends Pick<Partial<CheckoutErrorResponse>, 'code' | 'orderId' | 'paymentStatus'> {
 	status: number;
 	message: string;
-	code?: string;
-	orderId?: string;
-	paymentStatus?: string;
 }
 
 /** `{ error, code, orderId, paymentStatus }` from a failed `/api/checkout/*` response. */
@@ -52,7 +53,8 @@ export async function readCheckoutProblem(res: Response, fallback: string): Prom
 	return {
 		status: res.status,
 		message: text(body?.error) ?? fallback,
-		code: text(body?.code),
+		// A plain validation 400 has no code; anything else from /api/checkout/* is a checkout code.
+		code: text(body?.code) as CheckoutErrorCode | undefined,
 		orderId: text(body?.orderId),
 		paymentStatus: text(body?.paymentStatus),
 	};
