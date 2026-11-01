@@ -5,7 +5,6 @@ import type {
 	CheckoutQuestionAnswer,
 	ExistingAppointmentCustomer,
 	NewAppointmentCustomer,
-	NewOrderCustomer,
 } from '@opencals/storefront-sdk';
 import { getAccessToken, getSessionCustomerId } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,10 +18,9 @@ import { guestLimitError, isRealDate, sanitizeAddOns } from '../_lib/guards';
 import { EMAIL_RE } from '../checkout/customer-payload';
 
 /**
- * The appointment customer. The client sends its checkout customer here; only these fields are read. `phone` isn't
- * on the SDK's NewAppointmentCustomer, but the API stores it on a new customer, so it's still passed through.
+ * The appointment customer. The client sends its checkout customer here; only these fields are read.
  */
-type ReserveCustomer = ExistingAppointmentCustomer | (NewAppointmentCustomer & Pick<NewOrderCustomer, 'phone'>);
+type ReserveCustomer = ExistingAppointmentCustomer | NewAppointmentCustomer;
 
 interface ReserveInput {
 	/** The villa: `slug` looks up its check-in/out times and limits, `productId` must match it. */
