@@ -356,11 +356,18 @@ export function useStayBooking(input: StayBookingInput) {
 			customer:
 				'customerId' in customer
 					? // The server forwards customerId only when it matches the session; otherwise it
-						// falls back to the email.
-						{ customerId: customer.customerId, firstName: customer.firstName, lastName: customer.lastName, phone: customer.phone, ...extra }
+						// falls back to the email, so it's sent too.
+						{
+							customerId: customer.customerId,
+							email: email.trim() || undefined,
+							firstName: customer.firstName,
+							lastName: customer.lastName,
+							phone: customer.phone,
+							...extra,
+						}
 					: { email: customer.email, firstName: customer.firstName, lastName: customer.lastName, phone: customer.phone, ...extra },
 		};
-	}, [customer, billingAddress, marketingConsent]);
+	}, [customer, email, billingAddress, marketingConsent]);
 
 	const goToConfirmation = useCallback(
 		(orderId: string) => {
