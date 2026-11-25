@@ -20,6 +20,8 @@ const CODE_MESSAGES: Record<string, string> = {
 	CODE_NO_MATCHING_ITEMS: 'That code doesn’t apply to this villa or these extras.',
 	CODE_NO_CREDIT: 'There’s no credit left on that code.',
 	minimum_requirement_not_met: 'This stay doesn’t meet the code’s minimum yet.',
+	MINIMUM_DURATION_NOT_MET: 'This code needs a longer stay. Add nights and try again.',
+	MAXIMUM_DURATION_EXCEEDED: 'This code is for shorter stays.',
 } satisfies Record<DiscountCodeErrorResponse['code'], string>;
 
 interface PromoCodeProps {
